@@ -798,6 +798,10 @@ TEXT_RUN = re.compile(
 )
 NEWLINE = re.compile(r"\r\n|&#13;&#10;|&#x0*[dD];&#x0*[aA];|\r|\n|&#1[03];|&#x0*[aAdD];")
 SLIDE_PART = re.compile(r"ppt/slides/slide\d+\.xml")
+# An icon element whose SVG path was not available: the writer draws an ellipse.
+ICON_PLACEHOLDER = re.compile(
+    r"<p:sp>(?:(?!</p:sp>).)*?<pptd:icon\b(?:(?!</p:sp>).)*?<a:prstGeom prst=\"ellipse\"", re.S
+)
 
 
 def _css_string(name: str) -> str:
@@ -898,6 +902,7 @@ def postprocess_pptx(pptx: Path, transition: str, *, map_fonts: bool = True) -> 
     temporary = pptx.with_name(f".{pptx.name}.{uuid.uuid4().hex}.tmp")
     slide_count = 0
     line_breaks = 0
+    icons_missing = 0
     replaced: Dict[str, str] = {}
     typefaces: Dict[str, None] = {}
     try:
@@ -913,6 +918,7 @@ def postprocess_pptx(pptx: Path, transition: str, *, map_fonts: bool = True) -> 
                     line_breaks += breaks
                     if SLIDE_PART.fullmatch(name):
                         typefaces.update(dict.fromkeys(used_typefaces(updated)))
+                        icons_missing += len(ICON_PLACEHOLDER.findall(updated))
                     if updated != text:
                         data = updated.encode("utf-8")
                 if SLIDE_PART.fullmatch(name):
@@ -937,6 +943,7 @@ def postprocess_pptx(pptx: Path, transition: str, *, map_fonts: bool = True) -> 
         "lineBreaks": line_breaks,
         "fontsReplaced": dict(sorted(replaced.items())),
         "nonStandardFonts": unusual,
+        "iconsMissing": icons_missing,
     }
 
 
@@ -961,6 +968,15 @@ def apply_postprocess(
         message = (
             "these fonts are not standard on Windows/Office, so PowerPoint on another "
             "computer may substitute them: " + ", ".join(result["nonStandardFonts"])
+        )
+        log(f"warning: {message}")
+        summary.setdefault("warnings", []).append(message)
+    if result["iconsMissing"]:
+        summary["iconsMissing"] = result["iconsMissing"]
+        message = (
+            f"{result['iconsMissing']} icon(s) appear as plain circles in the PPTX: the iconName is "
+            "not a Font Awesome 7 Free icon, or the icon server could not be reached. Use a valid "
+            "`fas:`/`far:`/`fab:` name and export again, or draw the symbol with shapes."
         )
         log(f"warning: {message}")
         summary.setdefault("warnings", []).append(message)

@@ -284,6 +284,33 @@ class ExportPptxTests(unittest.TestCase):
 
             kept = MODULE.postprocess_pptx(deck, "fade", map_fonts=False)
             self.assertEqual(kept["fontsReplaced"], {})
+            self.assertEqual(kept["iconsMissing"], 0)
+
+    def test_icons_without_svg_path_are_reported(self):
+        def icon(name, geometry):
+            return (
+                f'<p:sp><p:nvSpPr><p:cNvPr id="1" name="{name}"/><p:nvPr><p:extLst><p:ext uri="x">'
+                '<pptd:icon encoding="base64url">e30</pptd:icon></p:ext></p:extLst></p:nvPr></p:nvSpPr>'
+                f"<p:spPr>{geometry}</p:spPr></p:sp>"
+            )
+
+        drawn = icon("ok", '<a:custGeom><a:pathLst><a:path w="1" h="1"/></a:pathLst></a:custGeom>')
+        placeholder = icon("missing", '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>')
+        plain_ellipse = '<p:sp><p:spPr><a:prstGeom prst="ellipse"/></p:spPr></p:sp>'
+        with tempfile.TemporaryDirectory() as name:
+            deck = Path(name) / "deck.pptx"
+            with zipfile.ZipFile(deck, "w") as archive:
+                archive.writestr(
+                    "ppt/slides/slide1.xml",
+                    f'<p:sld xmlns:p="urn:p" xmlns:a="urn:a" xmlns:pptd="urn:pptd"><p:cSld><p:spTree>'
+                    f"{drawn}{plain_ellipse}{placeholder}</p:spTree></p:cSld></p:sld>",
+                )
+            result = MODULE.postprocess_pptx(deck, "fade")
+            self.assertEqual(result["iconsMissing"], 1)
+            summary = {}
+            MODULE.apply_postprocess(deck, "fade", True, summary)
+            self.assertEqual(summary["iconsMissing"], 1)
+            self.assertIn("plain circles", summary["warnings"][0])
 
     def test_line_break_warning_only_for_browser_exporter(self):
         with tempfile.TemporaryDirectory() as name:

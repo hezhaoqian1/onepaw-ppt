@@ -44,6 +44,11 @@ elements:
     elementType: text
     bounds: [60, 60, 840, 140]
     content: {{fontSize: 36, fontFamily: MiSans, bold: true, color: "#111827", text: "环境检查 {index}<br/>Doctor page {index}"}}
+  - elementId: mark
+    elementType: icon
+    bounds: [60, 240, 48, 48]
+    iconName: "fas:circle-check"
+    fill: {{type: solid, color: "#2563EB"}}
 """
 
 
@@ -167,6 +172,18 @@ def smoke_pptx(report: Report, manifest: Path) -> None:
         f"fonts replaced: {summary.get('fontsReplaced') or {}}; line breaks: {summary.get('lineBreaks', 0)}"
     )
     report.add("PPTX export", "ok" if ok else "fail", detail)
+    if not ok:
+        return
+    missing = summary.get("iconsMissing", 0)
+    if missing:
+        report.add(
+            "Icons",
+            "warn",
+            f"{missing} of 2 icons are plain circles in the PPTX: the icon server "
+            "(statics.moonshot.cn) is unreachable, so draw symbols with shapes instead of icon elements",
+        )
+    else:
+        report.add("Icons", "ok", "Font Awesome icons are drawn in the PPTX")
 
 
 def smoke_images(report: Report, manifest: Path) -> None:
