@@ -44,7 +44,7 @@ For property values that conflict, the first source with a value is found by sea
 | color | `#000000` |
 | backgroundColor | Not applied |
 | fontSize | `18` |
-| fontFamily | `"MiSans"` |
+| fontFamily | `"MiSans"` (an editor web font; the exporter replaces it with Microsoft YaHei, so set `fontFamily` explicitly, see [fonts.md](./fonts.md)) |
 | bold | `false` |
 | italic | `false` |
 | lineHeight | `1` |
@@ -73,7 +73,7 @@ For property values that conflict, the first source with a value is found by sea
 | color | `#000000` |
 | backgroundColor | Not applied |
 | fontSize | Auto-adapts based on cell height |
-| fontFamily | `"MiSans"` |
+| fontFamily | `"MiSans"` (an editor web font; the exporter replaces it with Microsoft YaHei, so set `fontFamily` explicitly, see [fonts.md](./fonts.md)) |
 | bold | `false` |
 | italic | `false` |
 | lineHeight | `1` |
@@ -174,10 +174,10 @@ type FontFamily = string | { latin: string; ea: string };
 ```
 | Form | Example | Description |
 |------|------|------|
-| String | `"MiSans"` | Chinese and English use the same font uniformly |
-| Object | `{latin: "Arial", ea: "MiSans"}` | Explicitly specify Latin (latin) and East Asian (ea) fonts separately |
+| String | `"Microsoft YaHei"` | Chinese and English use the same font uniformly |
+| Object | `{latin: "Arial", ea: "Microsoft YaHei"}` | Explicitly specify Latin (latin) and East Asian (ea) fonts separately |
 
-See [fonts.md](./fonts.md) for the list of available fonts
+See [fonts.md](./fonts.md) for the list of available fonts. Use system fonts that every Windows/Office computer has (the PPTX does not embed fonts).
 
 ### Alignment
 ```ts
@@ -691,7 +691,7 @@ content:
     Second line
   ```
   ≡ `<p>First line</p><p>Second line</p>`
-- Do not use `<br/>` for line breaks: the editor renders it, but the PPTX writer drops it and the lines run together in the exported file. Use multiple `<p>` (or block-scalar lines) for every line break.
+- Prefer multiple `<p>` (or block-scalar lines) for line breaks. `<br/>` also works with the default exporter, which converts it into a real line break, but the `--browser` fallback exporter drops it.
 
 **LaTeX formulas**
 

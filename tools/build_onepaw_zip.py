@@ -13,8 +13,13 @@ adapted for agents that do not install into ``~/.agents/skills``:
 
 * ``python3 ~/.agents/skills/open-kimi-ppt/scripts/...`` -> ``python scripts/...``
   (paths relative to the skill directory, which OnePaw shows the agent);
-* ``npx open-kimi-ppt-skill serve`` -> ``node scripts/serve.mjs`` (bundled, so
-  the editor works offline and uses this build instead of the npm package).
+* ``npx open-kimi-ppt-skill serve`` -> ``python scripts/serve.py --open`` (bundled
+  editor server, started in the background with Node.js or the desktop agent's
+  own Electron runtime, so it works offline and without npm).
+
+The editor's legacy (``nomodule``) bundle is left out: the export scripts and
+the manual editor only run in current Chrome/Edge, which never load it. That
+removes about a quarter of the files and most of the skill scanner's findings.
 """
 
 from __future__ import annotations
@@ -35,13 +40,14 @@ PATH_NOTE = """\
 > **Skill paths (OnePaw / uploaded-zip build).** Every `scripts/...` path in this file is
 > relative to this skill's own directory, whose absolute path is shown to you with the skill.
 > Run commands from that directory, e.g. `cd <this skill dir> && python scripts/export_pptx.py ...`.
-> Use `python` on Windows and `python3` on macOS/Linux. `node scripts/serve.mjs` runs until it is
-> stopped, so start it as a background/detached process (Windows cmd: `start "" node scripts/serve.mjs --open`;
-> macOS/Linux: `nohup node scripts/serve.mjs --open >/dev/null 2>&1 &`) instead of waiting on it.
-> Desktop agents may run your shell with a trimmed PATH, so `node --version` can fail even though Node.js
-> is installed. Before reporting Node as missing in step0, look for it (Windows: `C:\\Program Files\\nodejs\\node.exe`;
-> macOS: `/opt/homebrew/bin/node`, `/usr/local/bin/node`) and prepend its folder to PATH in your commands.
-> The export scripts find Node in these places by themselves.
+> Use `python` on Windows and `python3` on macOS/Linux.
+> Desktop agents may run your shell with a trimmed PATH, so `node --version` can fail even though the
+> scripts work: they find Node.js themselves, or use the desktop app's built-in Electron runtime.
+> Rely on `python scripts/doctor.py` instead of checking `node`/`npm` yourself, and never ask the
+> user to install Node.js unless doctor reports that PPTX export fails.
+> Image QA and PPTX export can take a few minutes on slow computers: when your shell tool accepts a
+> timeout, pass at least 300 seconds for `export_images.py`, `export_pptx.py` and `doctor.py`.
+> `python scripts/serve.py --open` starts the manual editor in the background and returns at once.
 """
 
 SERVE_MJS = """\
@@ -86,6 +92,91 @@ process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
 """
 
+SERVE_PY = '''\
+#!/usr/bin/env python3
+"""Start the bundled PPTD editor in the background and print its URL.
+
+Usage: python scripts/serve.py [--port 55173] [--open]
+
+Returns as soon as the editor answers; the server keeps running. Node.js 18+ is
+used when installed, otherwise the desktop agent's Electron runtime (same
+lookup as export_pptx.py). Re-running it reuses an editor already on the port.
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from export_pptx import ExportError, make_output_robust, node_runtime  # noqa: E402
+
+LOCAL = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def answering(url):
+    try:
+        with LOCAL.open(url, timeout=2) as response:
+            return response.status == 200
+    except OSError:
+        return False
+
+
+def main():
+    make_output_robust()
+    parser = argparse.ArgumentParser(description="Start the bundled PPTD editor in the background.")
+    parser.add_argument("--port", type=int, default=55173)
+    parser.add_argument("--open", action="store_true", help="open the editor in the default browser")
+    args = parser.parse_args()
+    url = f"http://127.0.0.1:{args.port}/"
+    if answering(url):
+        print(f"Open Kimi PPT editor is already running at {url}")
+        return 0
+    try:
+        command, env, label = node_runtime()
+    except ExportError as exc:
+        print(f"cannot start the editor: {exc}", file=sys.stderr)
+        return 1
+    script = Path(__file__).resolve().with_name("serve.mjs")
+    argv = [*command, str(script), "--port", str(args.port)] + (["--open"] if args.open else [])
+    log_path = Path(tempfile.gettempdir()) / f"open-kimi-ppt-editor-{args.port}.log"
+    options = {}
+    if sys.platform == "win32":
+        options["creationflags"] = (
+            subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        )
+    else:
+        options["start_new_session"] = True
+    with log_path.open("w", encoding="utf-8") as log:
+        subprocess.Popen(
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            env={**os.environ, **env},
+            close_fds=True,
+            **options,
+        )
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        if answering(url):
+            print(f"Open Kimi PPT editor is running at {url} ({label})")
+            return 0
+        time.sleep(0.3)
+    print(f"the editor did not start; log: {log_path}", file=sys.stderr)
+    print(log_path.read_text(encoding="utf-8", errors="replace")[-2000:], file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+'''
+
 
 def stage_skill(staging: Path) -> Path:
     node = shutil.which("node")
@@ -105,12 +196,17 @@ def adapt_skill(skill: Path) -> None:
     # Bundle the editor server; it resolves ../editor, i.e. <skill>/editor.
     shutil.copyfile(REPO / "lib" / "editor-server.js", skill / "scripts" / "editor-server.mjs")
     (skill / "scripts" / "serve.mjs").write_text(SERVE_MJS, encoding="utf-8", newline="\n")
+    (skill / "scripts" / "serve.py").write_text(SERVE_PY, encoding="utf-8", newline="\n")
+
+    # Legacy (nomodule) editor chunks: never loaded by current Chrome/Edge.
+    for legacy in (skill / "editor").rglob("*-legacy-*"):
+        legacy.unlink()
 
     skill_md = skill / "SKILL.md"
     # Normalise CRLF (git autocrlf checkouts on Windows) so the front matter parses.
     text = skill_md.read_text(encoding="utf-8").replace("\r\n", "\n")
     text = text.replace(f"python3 ~/.agents/skills/{SKILL_NAME}/scripts/", "python scripts/")
-    text = text.replace("npx open-kimi-ppt-skill serve", "node scripts/serve.mjs")
+    text = text.replace("npx open-kimi-ppt-skill serve", "python scripts/serve.py --open")
 
     # Insert the path note right after the YAML front matter.
     if not text.startswith("---\n"):

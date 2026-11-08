@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "Lets Node import the editor ES module chunks (scripts/local-export reuses its YAML parser)."
+}

@@ -1,6 +1,6 @@
 ---
 name: open-kimi-ppt
-description: Create, edit, replicate, read, and export presentations. For every PPT task, the default deliverables are BOTH (1) a self-contained PPTD project folder containing the .pptd manifest plus pages/media dependencies and (2) a locally generated .pptx with embedded fonts and fade slide transitions. Use for any presentation, PowerPoint, PPT/PPTX, slide deck, PPTD, infographic, or poster task unless the user explicitly requests another format. Deliver with normal local file/folder links using absolute paths.
+description: Create, edit, replicate, read, and export presentations. For every PPT task, the default deliverables are BOTH (1) a self-contained PPTD project folder containing the .pptd manifest plus pages/media dependencies and (2) a locally generated .pptx that uses system fonts (so it looks the same in PowerPoint and WPS on any computer) with fade slide transitions. Use for any presentation, PowerPoint, PPT/PPTX, slide deck, PPTD, infographic, or poster task unless the user explicitly requests another format. Deliver with normal local file/folder links using absolute paths.
 ---
 
 # Definition
@@ -9,7 +9,7 @@ open-kimi-ppt is a presentation creation and export skill built around Moonshot 
 **The default output is not PPTD-only.** Unless the user explicitly opts out, always produce both:
 
 1. the complete editable PPTD project directory (`.pptd` + `pages/` + `media/` and other referenced dependencies);
-2. the matching locally generated `.pptx`, with font embedding enabled and fade slide transitions applied by default.
+2. the matching locally generated `.pptx`, with fade slide transitions applied by default and only fonts that every Windows/Office computer has (editor web fonts are replaced by system fonts on export).
 
 Existing PPTX files may also be converted into PPTD for editing, after which both outputs are delivered again.
 
@@ -19,13 +19,19 @@ The .pptd format is a simplified abstraction layer over OOXML that follows basic
 ## PPT production workflow
 
 ### step0. Check local prerequisites
-Default delivery includes PPTX export (and optional `npx open-kimi-ppt-skill serve`), which need a local toolchain. **Before generating**, verify:
+Before generating, run the environment check once per session (a few seconds, changes nothing):
 
-1. **Node.js 18+**: run `node --version`. If `node` is missing or the major version is below 18, **stop immediately**, tell the user to install Node.js 18+ from https://nodejs.org (or their OS package manager), and do not continue with PPTX export / `npx` until it is available. Only continue with PPTD-only output when the user explicitly opts out of PPTX.
-2. **npm / npx**: run `npm --version`. They ship with Node.js; if missing, treat Node.js as not installed correctly and guide the user to reinstall/fix PATH.
-3. **python3**: run `python3 --version` (on Windows, `python` may be the correct command). Needed for `export_pptx.py` / `export_images.py`.
-4. **Chrome / Chromium / Edge**: needed by `agent-browser` for **image QA** (`export_images.py`) and optional `--browser` PPTX path. Default PPTX export uses local WASM and does **not** require a browser. If image QA later fails with a browser-launch error, ask the user to install a Chromium-based browser.
-5. Soft deps are auto-handled by the scripts when missing: **PyYAML**, **agent-browser** (≥0.33.2 via npm, only for browser/image paths), and for image QA **Pillow** + **websocket-client**. **PPTX / image export / manual edit are offline** against the local neo-ppt mirror + patched WASM. Network is only needed if the deck references remote images/fonts.
+```bash
+python3 ~/.agents/skills/open-kimi-ppt/scripts/doctor.py
+```
+
+It checks Python, the Node runtime for PPTX export (an installed Node.js 18+, or the built-in runtime of an Electron desktop agent such as OnePaw, so Node.js does not have to be installed there), the headless Chrome/Edge used for image QA, and the bundled editor/WASM files, then exports a tiny test deck to prove the toolchain works.
+
+1. `PPTX export: OK` -> continue normally. Do not run your own `node --version` / `npm` checks: Node may be off your shell's PATH even though the scripts can use it.
+2. PPTX export failed -> tell the user exactly what doctor reports (usually: install Node.js 18+ from https://nodejs.org) and continue with PPTD-only output only if they agree.
+3. Image QA failed (no Chrome or Edge) -> continue, use the structural review in step4 instead of image QA, and tell the user.
+
+Nothing has to be installed with pip or npm: PyYAML is bundled, and the browser is driven directly (no agent-browser, Pillow or websocket-client). PPTX export, image QA and manual editing work offline; network is only needed for remote images referenced by the deck.
 
 ### step1. Read the context thoroughly
 Read **all files uploaded by the user**, the provided URLs, and the pptd format guide `reference/pptd.md` to fully understand the user's requirements.
@@ -70,7 +76,9 @@ When any of the following situations arise, resolve them by asking the user (use
 
 Before generating, first read `reference/pptd.md` to understand the pptd format definition and constraints.
 
-> **Line breaks: never use `<br/>` in text.** The editor preview (and therefore image QA) shows the break, but the PPTX writer drops it, so the lines run together in PowerPoint/WPS. Put each line in its own `<p>` paragraph (or its own line of a `|` block scalar) instead. `export_pptx.py` warns when it finds `<br/>`.
+> **Fonts: use only fonts that every Windows/Office computer has.** The PPTX does not embed fonts, so the audience's computer shows it with its own fonts. Use `Microsoft YaHei` for Chinese and `Arial` (or `Segoe UI`) for Latin text by default; `DengXian`, `SimHei`, `SimSun`, `KaiTi`, `Georgia`, `Times New Roman`, `Impact` and `Consolas` are also safe (see `reference/fonts.md`). Editor web fonts such as MiSans, Liter or 思源宋体 are replaced by the closest system font in the PPTX and in the QA images, so prefer choosing the system font yourself.
+>
+> **Line breaks:** put each line in its own `<p>` paragraph (or its own line of a `|` block scalar). `<br/>` is converted into a real line break by the default exporter, but the `--browser` fallback drops it.
 
 #### Replicating a PPT
 - Analyze the images to estimate element positions, fonts and sizes, etc., and **replicate 1:1 as closely as possible**.
@@ -127,7 +135,7 @@ When generating a PPT, adopt different production approaches for different user 
 ### step4. PPT validation
 1. Validate the generated pptd against the format definition in `reference/pptd.md` (required fields, types, bounds, theme tokens, resource paths, etc.) and repair issues over multiple rounds
 2. Visual review with exported page images — **required before PPTX export when the model supports image input (multimodal)**:
-   - Run `scripts/export_images.py`. It loads the deck into the **local neo-ppt editor** (same offline mirror as `serve`), chooses 导出 → 图片, downloads the images ZIP, unzips it, and stitches all pages into one overview image. Needs Chromium via `agent-browser`, but **does not** call `www.kimi.com`.
+   - Run `scripts/export_images.py`. It loads the deck into the **local neo-ppt editor** (same offline mirror as `serve`) in a headless Chrome/Edge, chooses 导出 → 图片, unzips the images, and stitches all pages into one overview image. Text is rendered with the same system fonts as the exported PPTX. It **does not** call `www.kimi.com` and needs no extra installs. It usually takes 10–30 s; when your shell tool accepts a timeout, give image and PPTX export commands at least 300 s.
 
      ```bash
      python3 ~/.agents/skills/open-kimi-ppt/scripts/export_images.py \
@@ -171,7 +179,8 @@ When generating a PPT, adopt different production approaches for different user 
 4. PPTX conversion: use `scripts/export_pptx.py`. **Default path is local patched official WASM** (`scripts/local-export/export-pptd.mjs --no-sign`): no cookie, no signature API, no browser UI. Optional `--browser` uses the **local** neo-ppt mirror (same as `serve`), still offline — not `www.kimi.com`.
 5. Default PPTX options:
    - page transition: `fade` (淡入淡出), written to every slide after export;
-   - font embedding: available on the browser path; local WASM path prioritizes reliability over embed;
+   - fonts: not embedded (PowerPoint ignores the editor's embedded font files); editor web fonts are replaced by system fonts and listed under `fontsReplaced` in the JSON summary, and any other non-standard font is reported under `warnings`. `--keep-fonts` keeps the web fonts, only for audiences that have them installed;
+   - line breaks: `<br/>` and newlines become real `<a:br/>` line breaks (`lineBreaks` in the summary);
    - override with `--transition none` or force browser UI with `--browser`.
 6. Export command:
 
@@ -190,13 +199,13 @@ When generating a PPT, adopt different production approaches for different user 
    A project directory may be passed instead of the manifest only when it contains exactly one `.pptd` file.
    Existing output files are not overwritten unless `--force` is passed.
 7. Offline model (本地编辑器 + 本地导出):
-   - **PPTX export (default)**: local patched WASM via `scripts/local-export/export-pptd.mjs --no-sign`. Canonical binary: package `editor/neo-ppt/assets/pptd_wasm_bg-DPPWdROu.wasm` (skill install copies it into `scripts/local-export/pptd_wasm_bg.wasm`). Requires **Node.js 18+** only.
-   - **Image QA / visual review**: `scripts/export_images.py` drives the **local** neo-ppt editor via agent-browser (Chromium required; no `www.kimi.com`).
+   - **PPTX export (default)**: local patched WASM via `scripts/local-export/export-pptd.mjs --no-sign`. Canonical binary: package `editor/neo-ppt/assets/pptd_wasm_bg-DPPWdROu.wasm` (skill install copies it into `scripts/local-export/pptd_wasm_bg.wasm`). Requires **Node.js 18+**, or the Electron runtime of the desktop agent that runs the skill (found automatically).
+   - **Image QA / visual review**: `scripts/export_images.py` drives the **local** neo-ppt editor in a headless Chrome or Edge over the DevTools protocol (`scripts/cdp.py`, standard library only; no `www.kimi.com`).
    - **Manual edit / preview**: `npx open-kimi-ppt-skill serve` serves the same offline neo-ppt mirror.
-   - Browser PPTX path (`--browser`) uses the same local editor host; auto-installs `agent-browser@latest` when missing/outdated; **PyYAML** auto-installed with `pip --user` when missing; image QA additionally auto-installs Pillow and websocket-client.
+   - Browser PPTX path (`--browser`, also the automatic fallback when no Node runtime is found) uses the same local editor host and headless browser. PyYAML is bundled in `scripts/_vendor/`; nothing is installed at run time.
    - Local PNG/JPEG/GIF/SVG files inside the PPTD project are resolved by the local exporter / injected as data URLs for the editor host.
    - Do not claim PowerPoint/WPS/Keynote playback compatibility solely because ZIP validation succeeds.
-8. After export, verify that the output exists and report the generated path. Confirm that every slide has exactly one root-level fade transition in valid CT_Slide order (`cSld`, optional `clrMapOvr`, `transition`, optional `timing/extLst`) and that the PPTX ZIP passes integrity checks. A byte-string search for `<p:fade>` is insufficient because Office ignores transitions nested inside `cSld`. For higher-risk decks, additionally inspect font parts and representative rendered/opened pages as appropriate.
+8. After export, verify that the output exists and report the generated path. Confirm that every slide has exactly one root-level fade transition in valid CT_Slide order (`cSld`, optional `clrMapOvr`, `transition`, optional `timing/extLst`) and that the PPTX ZIP passes integrity checks. A byte-string search for `<p:fade>` is insufficient because Office ignores transitions nested inside `cSld`. Read the JSON summary: report `fontsReplaced` and any `warnings` to the user. For higher-risk decks, additionally inspect representative rendered/opened pages as appropriate.
 9. When the user wants to open, edit, save, or export a PPTD project manually, start the local browser editor with `npx open-kimi-ppt-skill serve`. Ask the user to open `http://127.0.0.1:55173/` and authorize the complete PPTD project directory. Use a Chromium-based browser for writable access; folder-upload fallback is read-only. The host serves the **offline neo-ppt mirror** plus local patched WASM export — no `www.kimi.com`. Remote images or fonts referenced by the deck may still be fetched from their hosts.
 10. After completing and delivering any presentation, always end the final response with a concise optional next step telling the user that they can run `npx open-kimi-ppt-skill serve` to view or edit the PPTD project, configure slide transition animations, and export PPTX manually. Keep this reminder in addition to, not instead of, the required project and file links.
 11. Element animations (`page.animations` in PPTD — entrance / emphasis / exit / motion-path; see `reference/pptd.md` §6): use them only when the user explicitly requests animations, or when the deck is clearly intended for live presentation / slideshow playback and animation provides a clear benefit for staged disclosure, process demonstration, causal explanation, pacing, visual impact, or brand storytelling. By default, do not add element animations to reading-oriented, self-study, print, or primarily send-and-browse decks. Prefer 1–3 animation groups per page and simple effects such as fade, fly, and zoom. This is separate from the default PPTX slide-level fade page transition written by `export_pptx.py`.

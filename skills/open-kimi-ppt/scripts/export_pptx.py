@@ -3,10 +3,16 @@
 
 Default path (preferred): local patched official WASM writer
   scripts/local-export/export-pptd.mjs --no-sign
-  → offline, no cookie, no signature API, no browser UI.
+  -> offline, no cookie, no signature API, no browser UI. Needs Node.js 18+;
+  when Node is not installed, the Electron runtime of a desktop agent such as
+  OnePaw is used instead (ELECTRON_RUN_AS_NODE).
 
-Optional --browser path: local neo-ppt mirror via agent-browser
-  (same UI as `npx open-kimi-ppt-skill serve`, no www.kimi.com).
+Fallback / --browser path: the local neo-ppt editor driven in a headless
+Chrome/Edge through the DevTools protocol (scripts/cdp.py, stdlib only).
+
+Every export is post-processed for compatibility with PowerPoint and WPS:
+fade transitions, real line breaks, and editor-only web fonts replaced by
+look-alike system fonts (see FONT_FALLBACKS; disable with --keep-fonts).
 
 Image QA (`export_images.py`) uses the same local editor host.
 """
@@ -15,20 +21,16 @@ from __future__ import annotations
 
 import argparse
 import base64
-import importlib
+import html
 import json
-import mimetypes
 import os
 import re
 import shutil
-import site
-import socket
 import subprocess
 import sys
 import tempfile
 import threading
 import time
-import urllib.request
 import uuid
 import zipfile
 import xml.etree.ElementTree as ET
@@ -36,6 +38,13 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
+from xml.sax.saxutils import escape as xml_escape
+
+# Embedded Pythons configured by a ._pth file (e.g. the one bundled with desktop
+# agents such as OnePaw) do not put the script's directory on sys.path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from cdp import Browser, CDPError, Page, launch_browser  # noqa: E402
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 IMAGE_MIME = {
@@ -53,7 +62,6 @@ PPTX_CONTENT_TYPE = (
 FADE_TRANSITION_XML = (
     '<p:transition spd="fast" advClick="1"><p:fade/></p:transition>'
 )
-MIN_AGENT_BROWSER_VERSION = (0, 33, 2)
 MIN_NODE_MAJOR = 18
 NODE_INSTALL_HINT = "Install Node.js 18+ from https://nodejs.org, then retry."
 EDITOR_MISSING_HINT = (
@@ -97,12 +105,12 @@ def _registry_path_entries() -> List[str]:
 
 
 def augment_path() -> None:
-    """Let node / npm / agent-browser be found when the host trims PATH.
+    """Let node be found when the host trims PATH.
 
     Desktop agents may run skill commands with a reduced PATH: OnePaw's shell,
     for example, has its bundled Python but no Node even when Node is installed.
     Known locations are appended (never prepended) so an explicit PATH still
-    wins; child processes (node, npm, agent-browser) inherit the result.
+    wins; child processes inherit the result.
     """
     entries = [entry for entry in os.environ.get("PATH", "").split(os.pathsep) if entry]
     seen = {os.path.normcase(os.path.normpath(entry)) for entry in entries}
@@ -146,7 +154,7 @@ def run_command(
 ) -> subprocess.CompletedProcess[str]:
     """Capture merged stdout/stderr via a temp file.
 
-    On Windows, agent-browser's detached daemon can inherit a PIPE handle and
+    On Windows, a detached grandchild process can inherit a PIPE handle and
     prevent EOF, deadlocking ``subprocess.run(stdout=PIPE)``. Decoding with the
     system locale (GBK on zh-CN Windows) can also raise UnicodeDecodeError.
     Writing to a UTF-8 file avoids both failures.
@@ -194,66 +202,19 @@ def temporary_directory(prefix: str) -> Any:
         return tempfile.TemporaryDirectory(prefix=prefix)
 
 
-def default_downloads_dir() -> Path:
-    home = Path.home()
-    candidates: List[Path] = []
-    user_profile = os.environ.get("USERPROFILE")
-    if user_profile:
-        candidates.append(Path(user_profile) / "Downloads")
-    candidates.extend((home / "Downloads", home / "下载"))
-    for path in candidates:
-        if path.is_dir():
-            return path
-    return home / "Downloads"
-
-
-def pip_install(package: str) -> subprocess.CompletedProcess[str]:
-    """Install a soft dependency where this interpreter will import it from.
-
-    ``--user`` only helps when user site-packages is enabled. Embedded/portable
-    Pythons (``._pth`` files, e.g. the one bundled with desktop agents) and venvs
-    disable it, so a ``--user`` install would succeed yet stay unimportable.
-    """
-    use_user_site = bool(site.ENABLE_USER_SITE)
-    command = [sys.executable, "-m", "pip", "install"]
-    if use_user_site:
-        command.append("--user")
-    command.append(package)
-    process = run_command(command, timeout=300)
-    if process.returncode == 0:
-        if use_user_site:
-            # A user site created by this very install is not on sys.path yet.
-            user_site = site.getusersitepackages()
-            if user_site not in sys.path:
-                site.addsitedir(user_site)
-        importlib.invalidate_caches()
-    return process
-
-
-def ensure_pyyaml() -> Any:
+def load_yaml_module() -> Any:
+    """PyYAML, from site-packages or from the copy vendored with this skill."""
     try:
-        import yaml
+        import yaml as module
     except ImportError:
-        log("PyYAML is required; installing pyyaml with pip")
-        process = pip_install("pyyaml")
-        if process.returncode != 0:
-            raise ExportError(
-                "failed to install PyYAML with pip --user:\n"
-                f"{process.stdout[-2000:]}\n"
-                "Install it manually with: python3 -m pip install --user pyyaml"
-            )
-        import yaml
-    return yaml
+        vendor = str(Path(__file__).resolve().parent / "_vendor")
+        if vendor not in sys.path:
+            sys.path.append(vendor)
+        import yaml as module
+    return module
 
 
-yaml = ensure_pyyaml()
-
-
-def parse_version(output: str) -> Tuple[int, int, int]:
-    match = re.search(r"(\d+)\.(\d+)\.(\d+)\b", output)
-    if not match:
-        raise ExportError(f"could not parse agent-browser version from: {output.strip()}")
-    return tuple(int(part) for part in match.groups())
+yaml = load_yaml_module()
 
 
 def parse_node_version(output: str) -> Tuple[int, int, int]:
@@ -263,160 +224,100 @@ def parse_node_version(output: str) -> Tuple[int, int, int]:
     return tuple(int(part) for part in match.groups())
 
 
-def read_agent_browser_version(executable: str) -> Tuple[int, int, int]:
-    process = run_command([executable, "--version"], timeout=30)
-    if process.returncode != 0:
-        raise ExportError(f"agent-browser --version failed:\n{process.stdout[-2000:]}")
-    return parse_version(process.stdout)
+def _electron_in(directory: Path) -> Optional[Path]:
+    """The Electron app executable in ``directory``, if it is an Electron app."""
+    if sys.platform == "darwin":
+        if directory.suffix == ".app" and (directory / "Contents" / "Frameworks").is_dir():
+            binaries = sorted((directory / "Contents" / "MacOS").glob("*"))
+            return next((path for path in binaries if path.is_file()), None)
+        return None
+    markers = ("LICENSE.electron.txt", "resources/app.asar")
+    if not any((directory / marker).exists() for marker in markers):
+        return None
+    if sys.platform == "win32":
+        executables = [
+            path
+            for path in directory.glob("*.exe")
+            if not path.name.lower().startswith(("uninstall", "elevate", "squirrel"))
+        ]
+    else:
+        executables = [
+            path
+            for path in directory.iterdir()
+            if path.is_file() and os.access(path, os.X_OK) and not path.suffix
+            and path.name not in ("chrome-sandbox", "chrome_crashpad_handler")
+        ]
+    # The app binary is by far the largest file next to the Electron markers.
+    return max(executables, key=lambda path: path.stat().st_size, default=None)
+
+
+def find_electron() -> Optional[Path]:
+    """An Electron runtime that can stand in for Node via ELECTRON_RUN_AS_NODE.
+
+    Desktop agents (OnePaw and other Electron apps) bundle the Python that runs
+    this script inside their install folder, e.g.
+    ``<app>/resources/portable_py311/python.exe``. Their Electron binary embeds
+    Node, so Node.js does not have to be installed on the machine.
+    """
+    explicit = os.environ.get("OKP_ELECTRON")
+    if explicit and Path(explicit).is_file():
+        return Path(explicit)
+    for directory in list(Path(sys.executable).resolve().parents)[:5]:
+        try:
+            found = _electron_in(directory)
+        except OSError:
+            continue
+        if found is not None:
+            return found
+    return None
+
+
+_NODE: Optional[Tuple[List[str], Dict[str, str], str]] = None
+
+
+def node_runtime() -> Tuple[List[str], Dict[str, str], str]:
+    """Return (command prefix, extra env, description) for running a .mjs file."""
+    global _NODE
+    if _NODE is not None:
+        return _NODE
+    problems = []
+    node = shutil.which("node")
+    if node:
+        try:
+            process = run_command([node, "--version"], timeout=30)
+            version = parse_node_version(process.stdout)
+            if version[0] >= MIN_NODE_MAJOR:
+                _NODE = ([node], {}, f"Node.js {'.'.join(map(str, version))}")
+                return _NODE
+            problems.append(
+                f"Node.js {'.'.join(map(str, version))} at {node} is older than {MIN_NODE_MAJOR}"
+            )
+        except (ExportError, OSError, subprocess.SubprocessError) as exc:
+            problems.append(f"{node} --version failed: {exc}")
+    electron = find_electron()
+    if electron is not None:
+        env = {"ELECTRON_RUN_AS_NODE": "1"}
+        try:
+            process = run_command(
+                [str(electron), "-e", "process.stdout.write(process.versions.node)"],
+                env={**os.environ, **env},
+                timeout=30,
+            )
+            version = parse_node_version(process.stdout)
+            if version[0] >= MIN_NODE_MAJOR:
+                label = f"Node {'.'.join(map(str, version))} via {electron.name}"
+                _NODE = ([str(electron)], env, label)
+                return _NODE
+            problems.append(f"{electron} embeds Node {'.'.join(map(str, version))}")
+        except (ExportError, OSError, subprocess.SubprocessError) as exc:
+            problems.append(f"{electron} cannot run as Node: {exc}")
+    detail = ("; ".join(problems) + ". ") if problems else ""
+    raise ExportError(f"Node.js {MIN_NODE_MAJOR}+ was not found. {detail}{NODE_INSTALL_HINT}")
 
 
 def ensure_nodejs() -> str:
-    executable = shutil.which("node")
-    if not executable:
-        raise ExportError(f"Node.js is not installed or not on PATH. {NODE_INSTALL_HINT}")
-
-    process = run_command([executable, "--version"], timeout=30)
-    if process.returncode != 0:
-        raise ExportError(f"node --version failed:\n{process.stdout[-2000:]}")
-
-    version = parse_node_version(process.stdout)
-    if version[0] < MIN_NODE_MAJOR:
-        raise ExportError(
-            f"Node.js {MIN_NODE_MAJOR}+ is required; found "
-            f"{'.'.join(map(str, version))} ({process.stdout.strip()}). {NODE_INSTALL_HINT}"
-        )
-
-    npm = shutil.which("npm")
-    if not npm:
-        raise ExportError(
-            "npm is not installed or not on PATH. "
-            f"npm ships with Node.js. {NODE_INSTALL_HINT}"
-        )
-
-    log(f"Node.js version: {'.'.join(map(str, version))}")
-    return executable
-
-
-def ensure_agent_browser() -> str:
-    ensure_nodejs()
-
-    executable = shutil.which("agent-browser")
-    version = read_agent_browser_version(executable) if executable else None
-    if version is not None and version >= MIN_AGENT_BROWSER_VERSION:
-        log(f"agent-browser version: {'.'.join(map(str, version))}")
-        return executable
-
-    npm = shutil.which("npm")
-    if not npm:
-        reason = "not installed" if version is None else ".".join(map(str, version))
-        raise ExportError(
-            f"agent-browser {reason}; npm is required to install agent-browser@latest. "
-            f"npm ships with Node.js. {NODE_INSTALL_HINT}"
-        )
-
-    current = "not installed" if version is None else ".".join(map(str, version))
-    minimum = ".".join(map(str, MIN_AGENT_BROWSER_VERSION))
-    log(f"agent-browser {current} is below {minimum}; installing agent-browser@latest")
-    process = run_command(
-        [npm, "install", "-g", "agent-browser@latest"],
-        timeout=300,
-    )
-    if process.returncode != 0:
-        raise ExportError(f"failed to install agent-browser@latest:\n{process.stdout[-4000:]}")
-
-    executable = shutil.which("agent-browser")
-    if not executable:
-        raise ExportError("agent-browser@latest installed, but executable is not on PATH")
-    version = read_agent_browser_version(executable)
-    if version < MIN_AGENT_BROWSER_VERSION:
-        raise ExportError(
-            "agent-browser@latest is still below the required version "
-            f"{minimum}: {'.'.join(map(str, version))}"
-        )
-    log(f"agent-browser upgraded to {'.'.join(map(str, version))}")
-    return executable
-
-
-DEBUG_CHROME_PORT = 9337
-CHROME_CANDIDATES = (
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-    str(Path.home() / "AppData" / "Local" / "Google" / "Chrome" / "Application" / "chrome.exe"),
-    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-)
-
-
-def cdp_alive(port: int) -> bool:
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=2):
-            return True
-    except OSError:
-        return False
-
-
-def ensure_debug_chrome() -> Optional[int]:
-    """Return a CDP port for agent-browser to connect to (Windows only).
-
-    On Windows agent-browser cannot launch Chrome itself: the Chrome launcher
-    process hands off to a child and exits, which agent-browser mistakes for a
-    crash ("Chrome exited early without writing DevToolsActivePort"). The
-    export therefore always drives an externally started browser. An
-    already-working AGENT_BROWSER_CDP wins; otherwise a dedicated debug
-    instance is started (or reused) on port 9337. The instance is left running
-    on purpose: relaunching with the same profile joins the existing browser,
-    so repeated exports reuse one instance instead of piling up processes.
-    """
-    if sys.platform != "win32":
-        return None
-
-    explicit = os.environ.get("AGENT_BROWSER_CDP")
-    if explicit:
-        try:
-            if cdp_alive(int(explicit)):
-                return int(explicit)
-        except ValueError:
-            pass
-        log(f"AGENT_BROWSER_CDP={explicit} is not answering; starting a debug browser instead")
-
-    port = DEBUG_CHROME_PORT
-    if cdp_alive(port):
-        return port
-    with socket.socket() as probe:
-        if probe.connect_ex(("127.0.0.1", port)) == 0:
-            # Port taken by something that is not a CDP endpoint.
-            with socket.socket() as spare:
-                spare.bind(("127.0.0.1", 0))
-                port = spare.getsockname()[1]
-
-    executable = next((c for c in CHROME_CANDIDATES if Path(c).is_file()), None)
-    if executable is None:
-        raise ExportError(
-            "no Chrome or Edge found to drive the export; install Google Chrome, "
-            "or start a browser with --remote-debugging-port yourself and set "
-            "AGENT_BROWSER_CDP to that port"
-        )
-    profile = Path(tempfile.gettempdir()) / "okp-cdp-profile"
-    log(f"starting debug browser on port {port}: {executable}")
-    subprocess.Popen(
-        [
-            executable,
-            f"--user-data-dir={profile}",
-            f"--remote-debugging-port={port}",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--window-position=-2400,0",
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
-    )
-    deadline = time.monotonic() + 20
-    while time.monotonic() < deadline:
-        if cdp_alive(port):
-            return port
-        time.sleep(0.5)
-    raise ExportError(f"debug browser did not open CDP port {port} within 20s")
+    """Description of the Node runtime that will be used (raises if none)."""
+    return node_runtime()[2]
 
 
 def find_manifest(source: Path) -> Path:
@@ -442,7 +343,7 @@ BR_TAG = re.compile(r"<br\s*/?>", re.IGNORECASE)
 
 
 def find_dropped_line_breaks(manifest: Path) -> List[str]:
-    """Pages using <br/>, which the PPTX writer silently drops."""
+    """Pages using <br/>, which the editor's own PPTX writer drops."""
     project = manifest.parent
     hits = []
     for page in sorted(project.rglob("*.page")):
@@ -456,13 +357,15 @@ def find_dropped_line_breaks(manifest: Path) -> List[str]:
 
 
 def warn_dropped_line_breaks(manifest: Path, summary: Dict[str, Any]) -> None:
+    """Only the browser exporter drops <br/>; the local exporter converts it."""
+    if summary.get("exporter") != "browser-local-editor":
+        return
     hits = find_dropped_line_breaks(manifest)
     if not hits:
         return
     message = (
-        "<br/> line breaks are dropped by the PPTX writer, so those lines run together "
-        "in the exported file; split them into separate <p> paragraphs and re-export: "
-        + ", ".join(hits)
+        "the browser exporter drops <br/> line breaks, so those lines run together; "
+        "split them into separate <p> paragraphs and re-export: " + ", ".join(hits)
     )
     log(f"warning: {message}")
     summary.setdefault("warnings", []).append(message)
@@ -543,132 +446,133 @@ def build_payload(manifest: Path) -> Dict[str, Any]:
     }
 
 
-def json_result(output: str) -> Dict[str, Any]:
-    for line in reversed(output.splitlines()):
-        line = line.strip()
-        if not line.startswith("{"):
-            continue
+EXPORT_DIALOG = ".export-dialog.visible"
+DECK_READY_JS = """
+(() => {
+  const status = document.documentElement.dataset.deckStatus;
+  if (status === 'error') throw new Error(window.exportHostError || 'the editor could not load the deck');
+  return status === 'ready';
+})()
+""".strip()
+ACTIVE_FORMAT_JS = """
+(() => {
+  const dialog = [...document.querySelectorAll('.export-dialog.visible')].pop();
+  const active = dialog && dialog.querySelector('.radio-group-item.active');
+  return active ? active.textContent.trim() : null;
+})()
+""".strip()
+FONT_SWITCH_JS = """
+(() => {
+  const dialog = [...document.querySelectorAll('.export-dialog.visible')].pop();
+  const sw = dialog && dialog.querySelector('[role=switch]');
+  if (!sw) return null;
+  const r = sw.getBoundingClientRect();
+  return {
+    checked: sw.getAttribute('aria-checked') === 'true',
+    disabled: !!sw.disabled || sw.classList.contains('disabled'),
+    x: r.left + r.width / 2,
+    y: r.top + r.height / 2,
+  };
+})()
+""".strip()
+
+
+class EditorHost:
+    """The local editor served for one payload plus a headless browser.
+
+    Use as a context manager; ``export()`` drives the editor's export dialog and
+    returns the downloaded file. The browser stays available as ``browser`` for
+    follow-up work such as stitching the QA overview.
+    """
+
+    def __init__(self, payload: Dict[str, Any], *, font_fallbacks: bool = True) -> None:
+        self.payload = payload
+        self.font_fallbacks = font_fallbacks
+        self.browser: Optional[Browser] = None
+        self.server: Optional[ThreadingHTTPServer] = None
+        self.thread: Optional[threading.Thread] = None
+        self.url = ""
+
+    def __enter__(self) -> "EditorHost":
+        self.server, self.thread, self.url = serve_local_editor(self.payload)
         try:
-            value = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(value, dict):
-            return value
-    raise ExportError(f"agent-browser returned no JSON object:\n{output[-2000:]}")
+            self.browser = launch_browser()
+        except Exception:
+            self._stop_server()
+            raise
+        log(f"headless browser: {self.browser.executable}")
+        return self
 
+    def __exit__(self, *_exc: Any) -> None:
+        if self.browser is not None:
+            self.browser.close()
+            self.browser = None
+        self._stop_server()
 
-class BrowserSession:
-    def __init__(
+    def _stop_server(self) -> None:
+        if self.server is not None:
+            self.server.shutdown()
+            self.server.server_close()
+            self.server = None
+        if self.thread is not None:
+            self.thread.join(timeout=2)
+            self.thread = None
+
+    def open_editor(self, download_dir: Path) -> Page:
+        if self.browser is None:
+            raise ExportError("EditorHost must be used as a context manager")
+        page = Page(self.browser)
+        page.allow_downloads(download_dir)
+        if self.font_fallbacks:
+            page.call("Page.addScriptToEvaluateOnNewDocument", {"source": font_alias_script()})
+        page.navigate(self.url)
+        page.wait_for(DECK_READY_JS, 120, "the editor to load the deck")
+        return page
+
+    def export(
         self,
-        executable: str,
-        session: str,
-        cwd: Path,
         download_dir: Path,
-        cdp_port: Optional[int] = None,
-    ):
-        self.executable = executable
-        self.session = session
-        self.cwd = cwd
-        # Kept as a search root fallback; not passed to agent-browser. On Windows,
-        # --download-path can be rewritten to a \\?\ path that cancels Chrome downloads.
-        self.download_dir = download_dir
-        self.env = os.environ.copy()
-        self.env.setdefault("AGENT_BROWSER_DEFAULT_TIMEOUT", "60000")
-        self.env.setdefault("AGENT_BROWSER_IDLE_TIMEOUT_MS", "180000")
-        # Local editor host is 127.0.0.1; corporate HTTP(S)_PROXY would otherwise
-        # intercept and 403 the offline export page.
-        for key in (
-            "http_proxy",
-            "https_proxy",
-            "HTTP_PROXY",
-            "HTTPS_PROXY",
-            "ALL_PROXY",
-            "all_proxy",
-            "socks5_proxy",
-            "SOCKS5_PROXY",
-        ):
-            self.env.pop(key, None)
-        no_proxy = self.env.get("NO_PROXY") or self.env.get("no_proxy") or ""
-        parts = {p.strip() for p in no_proxy.split(",") if p.strip()}
-        parts.update({"127.0.0.1", "localhost", "::1"})
-        joined = ",".join(sorted(parts))
-        self.env["NO_PROXY"] = joined
-        self.env["no_proxy"] = joined
-        if cdp_port is not None:
-            self.env["AGENT_BROWSER_CDP"] = str(cdp_port)
-
-    def run(
-        self,
-        args: Sequence[str],
         *,
-        timeout: int = 90,
-        check: bool = True,
-    ) -> subprocess.CompletedProcess[str]:
-        command = [self.executable, "--session", self.session, *args]
-        process = run_command(command, cwd=self.cwd, env=self.env, timeout=timeout)
-        if check and process.returncode != 0:
-            raise ExportError(
-                f"agent-browser command failed ({process.returncode}): "
-                f"{' '.join(args)}\n{process.stdout[-4000:]}"
+        images: bool,
+        embed_fonts: Optional[bool] = None,
+        timeout: float = 240.0,
+    ) -> Path:
+        page = self.open_editor(download_dir)
+        page.click_text("导出")
+        page.wait_for(
+            f"!!document.querySelector({json.dumps(EXPORT_DIALOG)})", 20, "the export dialog"
+        )
+        if images:
+            page.click_text("图片", scope=EXPORT_DIALOG)
+            page.wait_for(f"{ACTIVE_FORMAT_JS} === '图片'", 10, "the image format option")
+        if embed_fonts is not None:
+            state = page.evaluate(FONT_SWITCH_JS)
+            if state is None:
+                if embed_fonts:
+                    log("warning: the export dialog exposed no font switch")
+            elif state["checked"] != embed_fonts:
+                if state["disabled"]:
+                    log("warning: the font switch is disabled for this deck")
+                else:
+                    page.click_at(state["x"], state["y"])
+        started_at = time.time() - 1.0
+        page.click_text("下载", scope=EXPORT_DIALOG)
+        log("rendering page images in the local editor" if images else "generating PPTX in the local editor")
+        accept = is_image_zip if images else is_pptx
+        return find_download((download_dir,), timeout=timeout, accept=accept, since=started_at)
+
+
+def is_image_zip(path: Path) -> bool:
+    if not path.is_file() or path.name.endswith(".crdownload"):
+        return False
+    try:
+        with zipfile.ZipFile(path) as archive:
+            return any(
+                Path(name).suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
+                for name in archive.namelist()
             )
-        return process
-
-    def open(self, url: str) -> None:
-        # Avoid --download-path: agent-browser ≤0.33.2 + Chrome may cancel downloads
-        # when given a verbatim Windows path. Files land in the default Downloads folder.
-        self.run(["open", url], timeout=90)
-
-    def snapshot(self) -> Dict[str, Any]:
-        process = self.run(["snapshot", "-i", "-C", "--json"])
-        return json_result(process.stdout)
-
-    def close(self) -> None:
-        self.run(["close"], timeout=20, check=False)
-
-
-def snapshot_data(snapshot: Dict[str, Any]) -> Dict[str, Any]:
-    data = snapshot.get("data")
-    if not isinstance(data, dict):
-        raise ExportError(f"invalid agent-browser snapshot: {snapshot}")
-    return data
-
-
-def ref_by_name(snapshot: Dict[str, Any], name: str, role: Optional[str] = None) -> str:
-    refs = snapshot_data(snapshot).get("refs")
-    if not isinstance(refs, dict):
-        raise ExportError("snapshot contains no interactive refs")
-    matches = []
-    for ref, metadata in refs.items():
-        if not isinstance(metadata, dict) or metadata.get("name") != name:
-            continue
-        if role is not None and str(metadata.get("role", "")).lower() != role.lower():
-            continue
-        matches.append(ref)
-    if not matches:
-        raise ExportError(f"could not find {role or 'element'} named {name!r}")
-    return matches[-1]
-
-
-def switch_state(snapshot: Dict[str, Any]) -> Optional[Tuple[str, bool, bool]]:
-    text = str(snapshot_data(snapshot).get("snapshot") or "")
-    match = re.search(r"switch \[(?P<attrs>[^\]]*?)ref=(?P<ref>e\d+)\]", text)
-    if not match:
-        return None
-    attrs = match.group("attrs")
-    return match.group("ref"), "checked=true" in attrs, "disabled" in attrs
-
-
-def wait_for_export_dialog(browser: BrowserSession, timeout: float = 20.0) -> Dict[str, Any]:
-    deadline = time.monotonic() + timeout
-    last: Optional[Dict[str, Any]] = None
-    while time.monotonic() < deadline:
-        last = browser.snapshot()
-        try:
-            ref_by_name(last, "下载", "button")
-            return last
-        except ExportError:
-            time.sleep(0.35)
-    raise ExportError(f"export dialog did not become ready: {last}")
+    except (OSError, zipfile.BadZipFile):
+        return False
 
 
 def is_pptx(path: Path) -> bool:
@@ -791,15 +695,227 @@ def validate_transition_order(slide_xml: bytes, transition: str) -> None:
             raise ExportError(f"{required_after} appears before transition")
 
 
-def patch_transitions(pptx: Path, transition: str) -> int:
+# Fonts the editor offers that are not installed on ordinary Windows / Office /
+# WPS machines. The local writer cannot embed them and PowerPoint ignores the
+# copies the browser path embeds, so on the audience's computer they fall back
+# to SimSun/Calibri and the layout breaks. Every export therefore swaps them for
+# look-alike fonts that ship with Windows and Office (and that WPS and PowerPoint
+# for Mac map). Image QA renders the same substitutes, so the preview matches
+# the PPTX. Keys are the names the editor writes, plus the aliases it accepts.
+FONT_FALLBACKS: Dict[str, str] = {
+    # Chinese sans-serif
+    "MiSans": "Microsoft YaHei",
+    "Mi Sans": "Microsoft YaHei",
+    "MiSans LC": "Microsoft YaHei",
+    "Noto Sans SC": "Microsoft YaHei",
+    "Noto Sans": "Microsoft YaHei",
+    "思源黑体": "Microsoft YaHei",
+    "Source Han Sans": "Microsoft YaHei",
+    "Source Han Sans SC": "Microsoft YaHei",
+    "SourceHanSans": "Microsoft YaHei",
+    "阿里妈妈数黑体": "Microsoft YaHei",
+    "得意黑": "Microsoft YaHei",
+    "Smiley Sans": "Microsoft YaHei",
+    "ZCOOL KuaiLe": "Microsoft YaHei",
+    "站酷快乐体": "Microsoft YaHei",
+    # Chinese serif
+    "思源宋体": "SimSun",
+    "Source Han Serif": "SimSun",
+    "Source Han Serif SC": "SimSun",
+    "SourceHanSerif": "SimSun",
+    "Noto Serif SC": "SimSun",
+    "霞鹜新致宋": "SimSun",
+    "精品点阵体": "SimSun",
+    # Chinese calligraphy / handwriting
+    "阿里妈妈东方大楷": "KaiTi",
+    "阿里妈妈刀隶体": "KaiTi",
+    "飞波正点体": "KaiTi",
+    "程荣光刻楷": "KaiTi",
+    "站酷文艺体": "KaiTi",
+    "LXGW Bright": "KaiTi",
+    "LXGW WenKai": "KaiTi",
+    "霞鹜文楷": "KaiTi",
+    "Long Cang": "KaiTi",
+    # Latin
+    "Liter": "Arial",
+    "HedvigLettersSans": "Arial",
+    "Hedvig Letters Sans": "Arial",
+    "QuattrocentoSans": "Arial",
+    "Quattrocento Sans": "Arial",
+    "Coda": "Arial",
+    "Oranienbaum": "Georgia",
+    "SortsMillGoudy": "Georgia",
+    "Sorts Mill Goudy": "Georgia",
+    "Unna": "Georgia",
+    "Jersey15": "Impact",
+    "Jersey 15": "Impact",
+    "Jersey20Charted": "Impact",
+    "Jersey 20 Charted": "Impact",
+    "LuckiestGuy": "Impact",
+    "Luckiest Guy": "Impact",
+    "PressStart2P": "Consolas",
+    "Press Start 2P": "Consolas",
+}
+
+# local() names of the substitutes for the browser preview: (regular, bold).
+FONT_FACES: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
+    "Microsoft YaHei": (
+        ("Microsoft YaHei", "微软雅黑", "PingFang SC Regular"),
+        ("Microsoft YaHei Bold", "PingFang SC Semibold"),
+    ),
+    "SimSun": (("SimSun", "宋体", "Songti SC Regular"), ()),
+    "KaiTi": (("KaiTi", "楷体", "STKaiti", "Kaiti SC Regular"), ()),
+    "Arial": (("Arial", "ArialMT"), ("Arial Bold", "Arial-BoldMT")),
+    "Georgia": (("Georgia",), ("Georgia Bold", "Georgia-Bold")),
+    "Impact": (("Impact",), ()),
+    "Consolas": (("Consolas", "Menlo Regular"), ("Consolas Bold", "Menlo Bold")),
+}
+
+# Fonts that ship with Windows + Office (and WPS); anything else gets a warning
+# because another computer may not have it.
+STANDARD_FONTS = {
+    name.lower()
+    for name in (
+        "Microsoft YaHei", "微软雅黑", "Microsoft YaHei UI", "Microsoft YaHei Light",
+        "SimSun", "宋体", "NSimSun", "新宋体", "SimHei", "黑体", "KaiTi", "楷体",
+        "FangSong", "仿宋", "DengXian", "等线", "DengXian Light", "等线 Light",
+        "Microsoft JhengHei", "PingFang SC", "Arial", "Arial Black", "Calibri",
+        "Calibri Light", "Cambria", "Candara", "Consolas", "Constantia", "Corbel",
+        "Courier New", "Georgia", "Impact", "Segoe UI", "Segoe UI Light",
+        "Segoe UI Semibold", "Segoe UI Black", "Tahoma", "Times New Roman",
+        "Trebuchet MS", "Verdana", "Bahnschrift", "Symbol", "Wingdings",
+        "Helvetica", "Helvetica Neue",
+    )
+}
+
+TYPEFACE_ATTR = re.compile(
+    r'(<a:(?:latin|ea|cs|sym|font|buFont)\b[^>]*?\btypeface=")([^"]*)(")'
+)
+TEXT_RUN = re.compile(
+    r"<a:r>(<a:rPr\b[^>]*/>|<a:rPr\b(?:[^>]*[^/>])?>(?:(?!</a:r>).)*?</a:rPr>)?"
+    r"<a:t(\s[^>]*)?>([^<]*)</a:t></a:r>",
+    re.DOTALL,
+)
+NEWLINE = re.compile(r"\r\n|&#13;&#10;|&#x0*[dD];&#x0*[aA];|\r|\n|&#1[03];|&#x0*[aAdD];")
+SLIDE_PART = re.compile(r"ppt/slides/slide\d+\.xml")
+
+
+def _css_string(name: str) -> str:
+    return '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def font_alias_css() -> str:
+    """@font-face rules that render each FONT_FALLBACKS font with its substitute."""
+    rules = []
+    for family, target in FONT_FALLBACKS.items():
+        regular, bold = FONT_FACES[target]
+        sources = ",".join(f"local({_css_string(name)})" for name in regular)
+        rules.append(f"@font-face{{font-family:{_css_string(family)};src:{sources}}}")
+        if bold:
+            sources = ",".join(f"local({_css_string(name)})" for name in bold)
+            rules.append(
+                f"@font-face{{font-family:{_css_string(family)};font-weight:700;src:{sources}}}"
+            )
+    return "\n".join(rules)
+
+
+FONT_ALIAS_SCRIPT = """
+(() => {
+  const css = __CSS__;
+  const blocked = new Set(__FAMILIES__);
+  const strip = (s) => String(s || '').trim().replace(/^["']|["']$/g, '').toLowerCase();
+  // Keep the editor from registering its web fonts for these families at runtime.
+  const add = FontFaceSet.prototype.add;
+  FontFaceSet.prototype.add = function (face) {
+    if (face && blocked.has(strip(face.family))) return this;
+    return add.call(this, face);
+  };
+  const install = () => {
+    const style = document.createElement('style');
+    style.dataset.okp = 'font-fallbacks';
+    style.textContent = css;
+    (document.head || document.documentElement).appendChild(style);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
+  else install();
+})();
+""".strip()
+
+
+def font_alias_script() -> str:
+    """Page script that renders editor web fonts with the PPTX substitutes."""
+    families = sorted({name.lower() for name in FONT_FALLBACKS})
+    return FONT_ALIAS_SCRIPT.replace(
+        "__CSS__", json.dumps(font_alias_css(), ensure_ascii=False)
+    ).replace("__FAMILIES__", json.dumps(families, ensure_ascii=False))
+
+
+def map_fonts_in_xml(text: str, replaced: Dict[str, str]) -> str:
+    def swap(match: "re.Match[str]") -> str:
+        name = html.unescape(match.group(2))
+        target = FONT_FALLBACKS.get(name)
+        if target is None:
+            return match.group(0)
+        replaced[name] = target
+        return f"{match.group(1)}{xml_escape(target)}{match.group(3)}"
+
+    return TYPEFACE_ATTR.sub(swap, text)
+
+
+def split_newline_runs(text: str) -> Tuple[str, int]:
+    """Turn newlines inside <a:t> into real <a:br/> line breaks.
+
+    PowerPoint happens to render a raw newline in <a:t>, but the schema wants
+    <a:br>, and other viewers (WPS, Keynote, LibreOffice) may not honour it.
+    """
+    count = 0
+
+    def split(match: "re.Match[str]") -> str:
+        nonlocal count
+        props, attrs, body = match.group(1) or "", match.group(2) or "", match.group(3)
+        parts = NEWLINE.split(body)
+        if len(parts) == 1:
+            return match.group(0)
+        count += len(parts) - 1
+        line_break = f"<a:br>{props}</a:br>" if props else "<a:br/>"
+        pieces = []
+        for index, part in enumerate(parts):
+            if index:
+                pieces.append(line_break)
+            if part:
+                pieces.append(f"<a:r>{props}<a:t{attrs}>{part}</a:t></a:r>")
+        return "".join(pieces)
+
+    return TEXT_RUN.sub(split, text), count
+
+
+def used_typefaces(text: str) -> List[str]:
+    return [html.unescape(match.group(2)) for match in TYPEFACE_ATTR.finditer(text)]
+
+
+def postprocess_pptx(pptx: Path, transition: str, *, map_fonts: bool = True) -> Dict[str, Any]:
+    """Rewrite the exported PPTX in place for PowerPoint/WPS compatibility."""
     temporary = pptx.with_name(f".{pptx.name}.{uuid.uuid4().hex}.tmp")
     slide_count = 0
+    line_breaks = 0
+    replaced: Dict[str, str] = {}
+    typefaces: Dict[str, None] = {}
     try:
         with zipfile.ZipFile(pptx, "r") as source, zipfile.ZipFile(temporary, "w") as target:
             target.comment = source.comment
             for info in source.infolist():
                 data = source.read(info.filename)
-                if re.fullmatch(r"ppt/slides/slide\d+\.xml", info.filename):
+                name = info.filename
+                if name.startswith("ppt/") and name.endswith(".xml"):
+                    text = data.decode("utf-8")
+                    updated = map_fonts_in_xml(text, replaced) if map_fonts else text
+                    updated, breaks = split_newline_runs(updated)
+                    line_breaks += breaks
+                    if SLIDE_PART.fullmatch(name):
+                        typefaces.update(dict.fromkeys(used_typefaces(updated)))
+                    if updated != text:
+                        data = updated.encode("utf-8")
+                if SLIDE_PART.fullmatch(name):
                     data = replace_transition(data, transition)
                     slide_count += 1
                 target.writestr(info, data, compress_type=info.compress_type)
@@ -808,7 +924,46 @@ def patch_transitions(pptx: Path, transition: str) -> int:
         temporary.replace(pptx)
     finally:
         temporary.unlink(missing_ok=True)
-    return slide_count
+    unusual = sorted(
+        name
+        for name in typefaces
+        if name
+        and not name.startswith("+")
+        and name.lower() not in STANDARD_FONTS
+        and name not in FONT_FALLBACKS
+    )
+    return {
+        "slides": slide_count,
+        "lineBreaks": line_breaks,
+        "fontsReplaced": dict(sorted(replaced.items())),
+        "nonStandardFonts": unusual,
+    }
+
+
+def patch_transitions(pptx: Path, transition: str) -> int:
+    return postprocess_pptx(pptx, transition, map_fonts=False)["slides"]
+
+
+def apply_postprocess(
+    pptx: Path, transition: str, map_fonts: bool, summary: Dict[str, Any]
+) -> None:
+    result = postprocess_pptx(pptx, transition, map_fonts=map_fonts)
+    summary["transitionPatchedSlides"] = result["slides"]
+    if result["lineBreaks"]:
+        summary["lineBreaks"] = result["lineBreaks"]
+    if result["fontsReplaced"]:
+        summary["fontsReplaced"] = result["fontsReplaced"]
+        log(
+            "replaced fonts that other computers lack: "
+            + ", ".join(f"{old} -> {new}" for old, new in result["fontsReplaced"].items())
+        )
+    if result["nonStandardFonts"]:
+        message = (
+            "these fonts are not standard on Windows/Office, so PowerPoint on another "
+            "computer may substitute them: " + ", ".join(result["nonStandardFonts"])
+        )
+        log(f"warning: {message}")
+        summary.setdefault("warnings", []).append(message)
 
 
 def verify_output(pptx: Path, transition: str, expect_fonts: bool) -> Dict[str, Any]:
@@ -953,14 +1108,13 @@ def export_pptx_local(
     output: Path,
     transition: str,
     force: bool = False,
+    map_fonts: bool = True,
 ) -> Dict[str, Any]:
     """Export via local patched official WASM (no cookie / no browser UI)."""
     if not LOCAL_EXPORT_MJS.is_file():
         raise ExportError(f"local exporter missing: {LOCAL_EXPORT_MJS}")
     wasm_path = resolve_local_wasm()
-    node = shutil.which("node")
-    if not node:
-        raise ExportError("node is required for local WASM export")
+    node_command, node_env, node_label = node_runtime()
 
     manifest = find_manifest(source)
     output = output.expanduser().resolve()
@@ -968,13 +1122,13 @@ def export_pptx_local(
     if output.exists() and not force:
         raise ExportError(f"output already exists (pass --force to replace it): {output}")
 
-    log(f"local WASM export: {manifest} → {output}")
+    log(f"local WASM export with {node_label}: {manifest} -> {output}")
     log(f"defaults: transition={transition} (no-sign / signature bypassed)")
 
     # Pass project directory so media paths resolve relative to the deck root.
     project_dir = manifest.parent if manifest.is_file() else source
     cmd = [
-        node,
+        *node_command,
         str(LOCAL_EXPORT_MJS),
         str(project_dir),
         "-o",
@@ -986,9 +1140,9 @@ def export_pptx_local(
         str(wasm_path),
     ]
 
-    # OKP_PYTHON lets the exporter's YAML fallback reuse this interpreter, which
-    # already has PyYAML (a bare "python3" may be missing or a different install).
-    # Node prints UTF-8; decode explicitly so zh-CN Windows (GBK) cannot choke.
+    # OKP_PYTHON lets the exporter's last-resort YAML fallback reuse this
+    # interpreter. Node prints UTF-8; decode explicitly so zh-CN Windows (GBK)
+    # cannot choke.
     process = subprocess.run(
         cmd,
         text=True,
@@ -997,16 +1151,16 @@ def export_pptx_local(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         timeout=300,
-        env={**os.environ, "OKP_PYTHON": sys.executable},
+        env={**os.environ, **node_env, "OKP_PYTHON": sys.executable},
     )
     if process.returncode != 0:
         raise ExportError(
             f"local WASM export failed ({process.returncode}):\n{process.stdout[-4000:]}"
         )
 
-    slide_count = patch_transitions(output, transition)
-    summary = verify_output(output, transition, expect_fonts=False)
-    summary["transitionPatchedSlides"] = slide_count
+    summary: Dict[str, Any] = {}
+    apply_postprocess(output, transition, map_fonts, summary)
+    summary = {**verify_output(output, transition, expect_fonts=False), **summary}
     summary["output"] = str(output)
     summary["exporter"] = "local-wasm-patched"
     log(f"local export ok: {output} ({output.stat().st_size} bytes)")
@@ -1021,13 +1175,14 @@ def export_pptx(
     keep_download: bool = False,
     force: bool = False,
     prefer_local: bool = True,
+    map_fonts: bool = True,
 ) -> Dict[str, Any]:
-    """Prefer local patched WASM; fall back to local neo-ppt browser UI."""
+    """Prefer local patched WASM; fall back to the local editor in a headless browser."""
     if prefer_local:
         try:
-            return export_pptx_local(source, output, transition, force=force)
+            return export_pptx_local(source, output, transition, force=force, map_fonts=map_fonts)
         except ExportError as exc:
-            log(f"local WASM export unavailable ({exc}); falling back to local browser editor")
+            log(f"local WASM export unavailable ({exc}); falling back to the local browser editor")
 
     manifest = find_manifest(source)
     payload = build_payload(manifest)
@@ -1035,86 +1190,49 @@ def export_pptx(
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.exists() and not force:
         raise ExportError(f"output already exists (pass --force to replace it): {output}")
-    agent_browser = ensure_agent_browser()
-    cdp_port = ensure_debug_chrome()
+    # Embedded copies of the editor fonts are ignored by PowerPoint; with font
+    # substitution on they would also no longer be referenced.
+    if map_fonts:
+        embed_fonts = False
 
     log(f"manifest: {manifest}")
-    log(
-        f"defaults: transition={transition}, embed_fonts={'on' if embed_fonts else 'off'}"
-    )
+    log(f"defaults: transition={transition}, embed_fonts={'on' if embed_fonts else 'off'}")
 
     with temporary_directory(prefix="open-kimi-ppt-export-") as temp_name:
-        temp_dir = Path(temp_name)
-        download_dir = temp_dir / "downloads"
+        download_dir = Path(temp_name) / "downloads"
         download_dir.mkdir()
-        server, thread, url = serve_local_editor(payload)
-        session = f"open-kimi-ppt-export-{os.getpid()}-{uuid.uuid4().hex[:8]}"
-        browser = BrowserSession(agent_browser, session, temp_dir, download_dir, cdp_port)
-        downloads = default_downloads_dir()
-        try:
-            log("opening the local neo-ppt editor")
-            browser.open(url)
-            browser.run(
-                [
-                    "wait",
-                    "--fn",
-                    'document.documentElement.dataset.deckStatus === "ready"',
-                ],
-                timeout=120,
-            )
-            browser.run(["set", "viewport", "1280", "720"])
-            snapshot = browser.snapshot()
-            export_ref = ref_by_name(snapshot, "导出", "button")
-            browser.run(["click", f"@{export_ref}"])
-            dialog = wait_for_export_dialog(browser)
+        with EditorHost(payload, font_fallbacks=map_fonts) as host:
+            downloaded = host.export(download_dir, images=False, embed_fonts=embed_fonts, timeout=180)
+        shutil.copy2(downloaded, output)
+        if keep_download:
+            debug_copy = output.with_name(f"{output.stem}.browser-raw.pptx")
+            if debug_copy.exists() and not force:
+                raise ExportError(f"raw debug output already exists (pass --force): {debug_copy}")
+            shutil.copy2(downloaded, debug_copy)
 
-            state = switch_state(dialog)
-            if state is not None:
-                switch_ref, checked, disabled = state
-                if disabled and checked != embed_fonts:
-                    log("warning: the font switch is disabled for this deck")
-                elif checked != embed_fonts:
-                    browser.run(["click", f"@{switch_ref}"])
-                    dialog = wait_for_export_dialog(browser)
-            elif embed_fonts:
-                log("warning: the export dialog exposed no font switch")
-
-            # Plain click (not agent-browser `download`) so Chrome saves to the
-            # default Downloads folder; --download-path is broken on some Windows setups.
-            started_at = time.time() - 1.0
-            download_ref = ref_by_name(dialog, "下载", "button")
-            log("generating PPTX in the local editor")
-            browser.run(["click", f"@{download_ref}"], timeout=180)
-            downloaded = find_download(
-                (downloads, download_dir, temp_dir),
-                timeout=90,
-                since=started_at,
-            )
-            shutil.copy2(downloaded, output)
-            if keep_download:
-                debug_copy = output.with_name(f"{output.stem}.browser-raw.pptx")
-                if debug_copy.exists() and not force:
-                    raise ExportError(
-                        f"raw debug output already exists (pass --force): {debug_copy}"
-                    )
-                shutil.copy2(downloaded, debug_copy)
-            try:
-                if downloaded.resolve().parent == downloads.resolve():
-                    downloaded.unlink(missing_ok=True)
-            except OSError:
-                pass
-        finally:
-            browser.close()
-            server.shutdown()
-            server.server_close()
-            thread.join(timeout=2)
-
-    slide_count = patch_transitions(output, transition)
-    summary = verify_output(output, transition, embed_fonts)
-    summary["transitionPatchedSlides"] = slide_count
+    summary: Dict[str, Any] = {}
+    apply_postprocess(output, transition, map_fonts, summary)
+    summary = {**verify_output(output, transition, embed_fonts), **summary}
     summary["output"] = str(output)
     summary["exporter"] = "browser-local-editor"
     return summary
+
+
+def make_output_robust() -> None:
+    """Print UTF-8 into pipes and never crash on an unencodable character.
+
+    Agent hosts read tool output from a pipe and decode it as UTF-8, while
+    Python on zh-CN Windows would write GBK there, garbling Chinese paths.
+    Interactive consoles keep their own encoding.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if stream.isatty():
+                stream.reconfigure(errors="backslashreplace")
+            else:
+                stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+        except (AttributeError, ValueError, OSError):
+            pass
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -1122,7 +1240,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         description=(
             "Export a PPTD project to PPTX. "
             "Default: local patched official WASM (offline). "
-            "Optional --browser uses the local neo-ppt mirror (also offline)."
+            "Optional --browser uses the local neo-ppt editor in a headless browser."
         )
     )
     parser.add_argument("input", type=Path, help=".pptd manifest or project directory")
@@ -1139,7 +1257,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         dest="embed_fonts",
         action="store_true",
         default=True,
-        help="embed fonts when available (browser path; default)",
+        help="embed editor fonts (browser path with --keep-fonts only; default)",
     )
     font_group.add_argument(
         "--no-embed-fonts",
@@ -1148,9 +1266,17 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="disable font embedding (browser path)",
     )
     parser.add_argument(
+        "--keep-fonts",
+        action="store_true",
+        help=(
+            "keep editor web fonts such as MiSans instead of replacing them with system "
+            "fonts (the PPTX then only looks right where those fonts are installed)"
+        ),
+    )
+    parser.add_argument(
         "--browser",
         action="store_true",
-        help="force local neo-ppt browser UI path instead of Node WASM",
+        help="force the local editor (headless browser) path instead of Node WASM",
     )
     parser.add_argument(
         "--keep-browser-raw",
@@ -1166,6 +1292,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    make_output_robust()
     args = parse_args(argv)
     try:
         manifest = find_manifest(args.input)
@@ -1178,9 +1305,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             args.keep_browser_raw,
             args.force,
             prefer_local=not args.browser,
+            map_fonts=not args.keep_fonts,
         )
         warn_dropped_line_breaks(manifest, summary)
-    except (ExportError, OSError, subprocess.SubprocessError) as exc:
+    except (ExportError, CDPError, OSError, subprocess.SubprocessError) as exc:
         print(f"open-kimi-ppt export failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(summary, ensure_ascii=False, indent=2))
