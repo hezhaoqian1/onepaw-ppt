@@ -691,7 +691,7 @@ content:
     Second line
   ```
   ≡ `<p>First line</p><p>Second line</p>`
-- `<br/>` may be used for a line break within a paragraph, but it is not guaranteed to be preserved on re-conversion after editing. When stable line breaks are needed, use multiple `<p>`.
+- Do not use `<br/>` for line breaks: the editor renders it, but the PPTX writer drops it and the lines run together in the exported file. Use multiple `<p>` (or block-scalar lines) for every line break.
 
 **LaTeX formulas**
 
