@@ -41,14 +41,23 @@ async function loadYaml() {
       const yaml = require('js-yaml');
       return (s) => yaml.load(s);
     } catch {
-      // fallback: python3 + PyYAML
+      // fallback: Python + PyYAML. export_pptx.py passes its own interpreter as
+      // OKP_PYTHON. PYTHONIOENCODING keeps stdin/stdout UTF-8: on zh-CN Windows
+      // Python otherwise decodes our UTF-8 input as GBK and garbles CJK text.
       return (text) => {
         const { spawnSync } = require('node:child_process');
+        const python = process.env.OKP_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
         const r = spawnSync(
-          'python3',
+          python,
           ['-c', 'import sys,yaml,json; print(json.dumps(yaml.safe_load(sys.stdin.read()), ensure_ascii=False))'],
-          { input: text, encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 },
+          {
+            input: text,
+            encoding: 'utf8',
+            maxBuffer: 50 * 1024 * 1024,
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+          },
         );
+        if (r.error) throw new Error(`python yaml failed (${python}): ${r.error.message}`);
         if (r.status !== 0) throw new Error('python yaml failed: ' + (r.stderr || r.stdout));
         return JSON.parse(r.stdout);
       };

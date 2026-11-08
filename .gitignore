@@ -13,3 +13,6 @@ __pycache__/
 
 # Local skill install metadata
 _user_meta.json
+
+# OnePaw skill zip builds
+dist/
