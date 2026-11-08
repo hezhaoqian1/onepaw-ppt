@@ -9,7 +9,7 @@ Skill 内置多套设计系统，**仅在用户点名时使用**（自选设计�
 在 Prompt 里点名主题 ID，例如：
 
 ```text
-使用 open-kimi-ppt，主题用 pine-green-strategy，做一份 AI 战略咨询 PPT，12 页左右
+使用 onepaw-ppt，主题用 pine-green-strategy，做一份 AI 战略咨询 PPT，12 页左右
 ```
 
 Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为唯一风格源。
@@ -25,7 +25,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `apricot-white-brief` — Apricot White Brief
 
 - **风格**: 杏白底咨询简报风，高密度论证、细线图表
-- **文件**: [`consulting/apricot-white-brief/design.md`](skills/open-kimi-ppt/reference/design_system/consulting/apricot-white-brief/design.md)
+- **文件**: [`consulting/apricot-white-brief/design.md`](skills/onepaw-ppt/reference/design_system/consulting/apricot-white-brief/design.md)
 - **点名**: `用 apricot-white-brief`
 
 ![Apricot White Brief](docs/themes/consulting/apricot-white-brief.jpg)
@@ -33,7 +33,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `indigo-due-diligence` — Indigo Due Diligence
 
 - **风格**: 靛蓝尽调风，麦肯锡式信息密度与框架图
-- **文件**: [`consulting/indigo-due-diligence/design.md`](skills/open-kimi-ppt/reference/design_system/consulting/indigo-due-diligence/design.md)
+- **文件**: [`consulting/indigo-due-diligence/design.md`](skills/onepaw-ppt/reference/design_system/consulting/indigo-due-diligence/design.md)
 - **点名**: `用 indigo-due-diligence`
 
 ![Indigo Due Diligence](docs/themes/consulting/indigo-due-diligence.jpg)
@@ -41,7 +41,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `marine-blue-research` — Marine Blue Research
 
 - **风格**: 海蓝研究风，专业咨询研究报告版式
-- **文件**: [`consulting/marine-blue-research/design.md`](skills/open-kimi-ppt/reference/design_system/consulting/marine-blue-research/design.md)
+- **文件**: [`consulting/marine-blue-research/design.md`](skills/onepaw-ppt/reference/design_system/consulting/marine-blue-research/design.md)
 - **点名**: `用 marine-blue-research`
 
 ![Marine Blue Research](docs/themes/consulting/marine-blue-research.jpg)
@@ -49,7 +49,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `moss-green-transformation` — Moss Green Transformation
 
 - **风格**: 苔绿转型风，战略落地与变革叙事
-- **文件**: [`consulting/moss-green-transformation/design.md`](skills/open-kimi-ppt/reference/design_system/consulting/moss-green-transformation/design.md)
+- **文件**: [`consulting/moss-green-transformation/design.md`](skills/onepaw-ppt/reference/design_system/consulting/moss-green-transformation/design.md)
 - **点名**: `用 moss-green-transformation`
 
 ![Moss Green Transformation](docs/themes/consulting/moss-green-transformation.jpg)
@@ -57,7 +57,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `pine-green-strategy` — Pine Green Strategy
 
 - **风格**: 松绿战略风，深色题头条 + 薄荷绿强调
-- **文件**: [`consulting/pine-green-strategy/design.md`](skills/open-kimi-ppt/reference/design_system/consulting/pine-green-strategy/design.md)
+- **文件**: [`consulting/pine-green-strategy/design.md`](skills/onepaw-ppt/reference/design_system/consulting/pine-green-strategy/design.md)
 - **点名**: `用 pine-green-strategy`
 
 ![Pine Green Strategy](docs/themes/consulting/pine-green-strategy.jpg)
@@ -65,7 +65,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `red-black-growth` — Red-Black Growth
 
 - **风格**: 红黑增长风，强对比结论导向
-- **文件**: [`consulting/red-black-growth/design.md`](skills/open-kimi-ppt/reference/design_system/consulting/red-black-growth/design.md)
+- **文件**: [`consulting/red-black-growth/design.md`](skills/onepaw-ppt/reference/design_system/consulting/red-black-growth/design.md)
 - **点名**: `用 red-black-growth`
 
 ![Red-Black Growth](docs/themes/consulting/red-black-growth.jpg)
@@ -79,7 +79,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `black-gold-ledger` — Black Gold Ledger
 
 - **风格**: 黑金台账风，机构级投研报告
-- **文件**: [`finance/black-gold-ledger/design.md`](skills/open-kimi-ppt/reference/design_system/finance/black-gold-ledger/design.md)
+- **文件**: [`finance/black-gold-ledger/design.md`](skills/onepaw-ppt/reference/design_system/finance/black-gold-ledger/design.md)
 - **点名**: `用 black-gold-ledger`
 
 ![Black Gold Ledger](docs/themes/finance/black-gold-ledger.jpg)
@@ -87,7 +87,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `ebony-ledger` — Ebony Ledger
 
 - **风格**: 乌木台账风，深色金融研究气质
-- **文件**: [`finance/ebony-ledger/design.md`](skills/open-kimi-ppt/reference/design_system/finance/ebony-ledger/design.md)
+- **文件**: [`finance/ebony-ledger/design.md`](skills/onepaw-ppt/reference/design_system/finance/ebony-ledger/design.md)
 - **点名**: `用 ebony-ledger`
 
 ![Ebony Ledger](docs/themes/finance/ebony-ledger.jpg)
@@ -95,7 +95,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `honey-orange-memo` — Honey Orange Memo
 
 - **风格**: 蜜橙备忘录风，温暖商务投研备忘
-- **文件**: [`finance/honey-orange-memo/design.md`](skills/open-kimi-ppt/reference/design_system/finance/honey-orange-memo/design.md)
+- **文件**: [`finance/honey-orange-memo/design.md`](skills/onepaw-ppt/reference/design_system/finance/honey-orange-memo/design.md)
 - **点名**: `用 honey-orange-memo`
 
 ![Honey Orange Memo](docs/themes/finance/honey-orange-memo.jpg)
@@ -103,7 +103,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `lake-blue-memo` — Lake Blue Memo
 
 - **风格**: 湖蓝备忘录风，清爽财务研究备忘
-- **文件**: [`finance/lake-blue-memo/design.md`](skills/open-kimi-ppt/reference/design_system/finance/lake-blue-memo/design.md)
+- **文件**: [`finance/lake-blue-memo/design.md`](skills/onepaw-ppt/reference/design_system/finance/lake-blue-memo/design.md)
 - **点名**: `用 lake-blue-memo`
 
 ![Lake Blue Memo](docs/themes/finance/lake-blue-memo.jpg)
@@ -111,7 +111,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `prospect-annual` — Prospect Annual
 
 - **风格**: 展望年报风，机构年度研究出版感
-- **文件**: [`finance/prospect-annual/design.md`](skills/open-kimi-ppt/reference/design_system/finance/prospect-annual/design.md)
+- **文件**: [`finance/prospect-annual/design.md`](skills/onepaw-ppt/reference/design_system/finance/prospect-annual/design.md)
 - **点名**: `用 prospect-annual`
 
 ![Prospect Annual](docs/themes/finance/prospect-annual.jpg)
@@ -119,7 +119,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `rice-paper-annual` — Rice Paper Annual
 
 - **风格**: 宣纸年报风，米白纸感大标题编辑风
-- **文件**: [`finance/rice-paper-annual/design.md`](skills/open-kimi-ppt/reference/design_system/finance/rice-paper-annual/design.md)
+- **文件**: [`finance/rice-paper-annual/design.md`](skills/onepaw-ppt/reference/design_system/finance/rice-paper-annual/design.md)
 - **点名**: `用 rice-paper-annual`
 
 ![Rice Paper Annual](docs/themes/finance/rice-paper-annual.jpg)
@@ -133,7 +133,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `blue-flame-brand` — Blue Flame Brand
 
 - **风格**: 蓝焰品牌风，结论先行的业务复盘
-- **文件**: [`work/blue-flame-brand/design.md`](skills/open-kimi-ppt/reference/design_system/work/blue-flame-brand/design.md)
+- **文件**: [`work/blue-flame-brand/design.md`](skills/onepaw-ppt/reference/design_system/work/blue-flame-brand/design.md)
 - **点名**: `用 blue-flame-brand`
 
 ![Blue Flame Brand](docs/themes/work/blue-flame-brand.jpg)
@@ -141,7 +141,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `electric-violet-business` — Electric Violet Business
 
 - **风格**: 电紫商务风，经营复盘与进展汇报
-- **文件**: [`work/electric-violet-business/design.md`](skills/open-kimi-ppt/reference/design_system/work/electric-violet-business/design.md)
+- **文件**: [`work/electric-violet-business/design.md`](skills/onepaw-ppt/reference/design_system/work/electric-violet-business/design.md)
 - **点名**: `用 electric-violet-business`
 
 ![Electric Violet Business](docs/themes/work/electric-violet-business.jpg)
@@ -149,7 +149,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `moon-white-imagery` — Moon-White Imagery
 
 - **风格**: 月白影像风，大图叙事 + 经营结论
-- **文件**: [`work/moon-white-imagery/design.md`](skills/open-kimi-ppt/reference/design_system/work/moon-white-imagery/design.md)
+- **文件**: [`work/moon-white-imagery/design.md`](skills/onepaw-ppt/reference/design_system/work/moon-white-imagery/design.md)
 - **点名**: `用 moon-white-imagery`
 
 ![Moon-White Imagery](docs/themes/work/moon-white-imagery.jpg)
@@ -157,7 +157,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `sky-blue-wayfinding` — Sky Blue Wayfinding
 
 - **风格**: 天蓝导视风，清晰导航式工作汇报
-- **文件**: [`work/sky-blue-wayfinding/design.md`](skills/open-kimi-ppt/reference/design_system/work/sky-blue-wayfinding/design.md)
+- **文件**: [`work/sky-blue-wayfinding/design.md`](skills/onepaw-ppt/reference/design_system/work/sky-blue-wayfinding/design.md)
 - **点名**: `用 sky-blue-wayfinding`
 
 ![Sky Blue Wayfinding](docs/themes/work/sky-blue-wayfinding.jpg)
@@ -165,7 +165,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `warm-clay-works` — Warm Clay Works
 
 - **风格**: 暖陶作品风，高完成度作品集式汇报
-- **文件**: [`work/warm-clay-works/design.md`](skills/open-kimi-ppt/reference/design_system/work/warm-clay-works/design.md)
+- **文件**: [`work/warm-clay-works/design.md`](skills/onepaw-ppt/reference/design_system/work/warm-clay-works/design.md)
 - **点名**: `用 warm-clay-works`
 
 ![Warm Clay Works](docs/themes/work/warm-clay-works.jpg)
@@ -173,7 +173,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `warm-jade-annual-report` — Warm Jade Annual Report
 
 - **风格**: 暖玉年报风，经营年报与复盘
-- **文件**: [`work/warm-jade-annual-report/design.md`](skills/open-kimi-ppt/reference/design_system/work/warm-jade-annual-report/design.md)
+- **文件**: [`work/warm-jade-annual-report/design.md`](skills/onepaw-ppt/reference/design_system/work/warm-jade-annual-report/design.md)
 - **点名**: `用 warm-jade-annual-report`
 
 ![Warm Jade Annual Report](docs/themes/work/warm-jade-annual-report.jpg)
@@ -187,7 +187,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `aqua-charity-report` — Aqua Charity Report
 
 - **风格**: 水色公益报告风，品牌公益传播
-- **文件**: [`promotion/aqua-charity-report/design.md`](skills/open-kimi-ppt/reference/design_system/promotion/aqua-charity-report/design.md)
+- **文件**: [`promotion/aqua-charity-report/design.md`](skills/onepaw-ppt/reference/design_system/promotion/aqua-charity-report/design.md)
 - **点名**: `用 aqua-charity-report`
 
 ![Aqua Charity Report](docs/themes/promotion/aqua-charity-report.jpg)
@@ -195,7 +195,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `cream-collage` — Cream Collage
 
 - **风格**: 奶油拼贴风，情绪化品牌拼贴叙事
-- **文件**: [`promotion/cream-collage/design.md`](skills/open-kimi-ppt/reference/design_system/promotion/cream-collage/design.md)
+- **文件**: [`promotion/cream-collage/design.md`](skills/onepaw-ppt/reference/design_system/promotion/cream-collage/design.md)
 - **点名**: `用 cream-collage`
 
 ![Cream Collage](docs/themes/promotion/cream-collage.jpg)
@@ -203,7 +203,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `pine-soot-pictorial` — Pine Soot Pictorial
 
 - **风格**: 松烟画报风，画报感品牌年刊
-- **文件**: [`promotion/pine-soot-pictorial/design.md`](skills/open-kimi-ppt/reference/design_system/promotion/pine-soot-pictorial/design.md)
+- **文件**: [`promotion/pine-soot-pictorial/design.md`](skills/onepaw-ppt/reference/design_system/promotion/pine-soot-pictorial/design.md)
 - **点名**: `用 pine-soot-pictorial`
 
 ![Pine Soot Pictorial](docs/themes/promotion/pine-soot-pictorial.jpg)
@@ -211,7 +211,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `silk-yellow-magazine` — Silk Yellow Magazine
 
 - **风格**: 丝黄杂志风，高密度杂志编辑排版
-- **文件**: [`promotion/silk-yellow-magazine/design.md`](skills/open-kimi-ppt/reference/design_system/promotion/silk-yellow-magazine/design.md)
+- **文件**: [`promotion/silk-yellow-magazine/design.md`](skills/onepaw-ppt/reference/design_system/promotion/silk-yellow-magazine/design.md)
 - **点名**: `用 silk-yellow-magazine`
 
 ![Silk Yellow Magazine](docs/themes/promotion/silk-yellow-magazine.jpg)
@@ -219,7 +219,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `silver-gray-luxury-magazine` — Silver-Gray Luxury Magazine
 
 - **风格**: 银灰奢华杂志风，高端品牌刊感
-- **文件**: [`promotion/silver-gray-luxury-magazine/design.md`](skills/open-kimi-ppt/reference/design_system/promotion/silver-gray-luxury-magazine/design.md)
+- **文件**: [`promotion/silver-gray-luxury-magazine/design.md`](skills/onepaw-ppt/reference/design_system/promotion/silver-gray-luxury-magazine/design.md)
 - **点名**: `用 silver-gray-luxury-magazine`
 
 ![Silver-Gray Luxury Magazine](docs/themes/promotion/silver-gray-luxury-magazine.jpg)
@@ -227,7 +227,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `travel-green-handbook` — Travel Green Handbook
 
 - **风格**: 旅行绿手册风，旅行/目的地手册气质
-- **文件**: [`promotion/travel-green-handbook/design.md`](skills/open-kimi-ppt/reference/design_system/promotion/travel-green-handbook/design.md)
+- **文件**: [`promotion/travel-green-handbook/design.md`](skills/onepaw-ppt/reference/design_system/promotion/travel-green-handbook/design.md)
 - **点名**: `用 travel-green-handbook`
 
 ![Travel Green Handbook](docs/themes/promotion/travel-green-handbook.jpg)
@@ -241,7 +241,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `blue-line-courseware` — Blue-Line Courseware
 
 - **风格**: 蓝线课件风，严谨学术课件排版
-- **文件**: [`academic/blue-line-courseware/design.md`](skills/open-kimi-ppt/reference/design_system/academic/blue-line-courseware/design.md)
+- **文件**: [`academic/blue-line-courseware/design.md`](skills/onepaw-ppt/reference/design_system/academic/blue-line-courseware/design.md)
 - **点名**: `用 blue-line-courseware`
 
 ![Blue-Line Courseware](docs/themes/academic/blue-line-courseware.jpg)
@@ -249,7 +249,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `deep-blue-atlas` — Deep Blue Atlas
 
 - **风格**: 深蓝图集风，研究讲座与图集叙事
-- **文件**: [`academic/deep-blue-atlas/design.md`](skills/open-kimi-ppt/reference/design_system/academic/deep-blue-atlas/design.md)
+- **文件**: [`academic/deep-blue-atlas/design.md`](skills/onepaw-ppt/reference/design_system/academic/deep-blue-atlas/design.md)
 - **点名**: `用 deep-blue-atlas`
 
 ![Deep Blue Atlas](docs/themes/academic/deep-blue-atlas.jpg)
@@ -257,7 +257,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `paper-white-courseware` — Paper White Courseware
 
 - **风格**: 纸白课件风，论文答辩级排版
-- **文件**: [`academic/paper-white-courseware/design.md`](skills/open-kimi-ppt/reference/design_system/academic/paper-white-courseware/design.md)
+- **文件**: [`academic/paper-white-courseware/design.md`](skills/onepaw-ppt/reference/design_system/academic/paper-white-courseware/design.md)
 - **点名**: `用 paper-white-courseware`
 
 ![Paper White Courseware](docs/themes/academic/paper-white-courseware.jpg)
@@ -265,7 +265,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `pastel-derivation` — Pastel Derivation
 
 - **风格**: 粉彩推导风，公式/推导渐进揭示
-- **文件**: [`academic/pastel-derivation/design.md`](skills/open-kimi-ppt/reference/design_system/academic/pastel-derivation/design.md)
+- **文件**: [`academic/pastel-derivation/design.md`](skills/onepaw-ppt/reference/design_system/academic/pastel-derivation/design.md)
 - **点名**: `用 pastel-derivation`
 
 ![Pastel Derivation](docs/themes/academic/pastel-derivation.jpg)
@@ -273,7 +273,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `teal-green-academic-defense` — Teal-Green Academic Defense
 
 - **风格**: 青绿答辩风，硕博答辩正式感
-- **文件**: [`academic/teal-green-academic-defense/design.md`](skills/open-kimi-ppt/reference/design_system/academic/teal-green-academic-defense/design.md)
+- **文件**: [`academic/teal-green-academic-defense/design.md`](skills/onepaw-ppt/reference/design_system/academic/teal-green-academic-defense/design.md)
 - **点名**: `用 teal-green-academic-defense`
 
 ![Teal-Green Academic Defense](docs/themes/academic/teal-green-academic-defense.jpg)
@@ -281,7 +281,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `wine-red-data` — Wine Red Data
 
 - **风格**: 酒红数据风，学术数据可视化
-- **文件**: [`academic/wine-red-data/design.md`](skills/open-kimi-ppt/reference/design_system/academic/wine-red-data/design.md)
+- **文件**: [`academic/wine-red-data/design.md`](skills/onepaw-ppt/reference/design_system/academic/wine-red-data/design.md)
 - **点名**: `用 wine-red-data`
 
 ![Wine Red Data](docs/themes/academic/wine-red-data.jpg)
@@ -297,7 +297,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `dusk-violet-consulting` — Dusk Violet Consulting
 
 - **风格**: 暮紫咨询思想领导力报告风
-- **文件**: [`01/en/dusk-violet-consulting.md`](skills/open-kimi-ppt/reference/design_system/01_strategy/01/en/dusk-violet-consulting.md)
+- **文件**: [`01/en/dusk-violet-consulting.md`](skills/onepaw-ppt/reference/design_system/01_strategy/01/en/dusk-violet-consulting.md)
 - **点名**: `用 dusk-violet-consulting`
 
 ![Dusk Violet Consulting](docs/themes/extra/dusk-violet-consulting.jpg)
@@ -305,7 +305,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `red-black-business` — Red Black Business
 
 - **风格**: 红黑管理咨询全案模板风
-- **文件**: [`04/en/red-black-business.md`](skills/open-kimi-ppt/reference/design_system/01_strategy/04/en/red-black-business.md)
+- **文件**: [`04/en/red-black-business.md`](skills/onepaw-ppt/reference/design_system/01_strategy/04/en/red-black-business.md)
 - **点名**: `用 red-black-business`
 
 ![Red Black Business](docs/themes/extra/red-black-business.jpg)
@@ -313,7 +313,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `map-strategy` — Cartographic Strategy
 
 - **风格**: 地图战略风，国际化/区域布局
-- **文件**: [`06/en/map-strategy.md`](skills/open-kimi-ppt/reference/design_system/01_strategy/06/en/map-strategy.md)
+- **文件**: [`06/en/map-strategy.md`](skills/onepaw-ppt/reference/design_system/01_strategy/06/en/map-strategy.md)
 - **点名**: `用 map-strategy`
 
 ![Cartographic Strategy](docs/themes/extra/map-strategy.jpg)
@@ -323,7 +323,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `xuan-paper-annual` — Xuan Paper Annual
 
 - **风格**: 宣纸年刊风，超重标题编辑研究刊
-- **文件**: [`03/en/xuan-paper-annual.md`](skills/open-kimi-ppt/reference/design_system/02_business/03/en/xuan-paper-annual.md)
+- **文件**: [`03/en/xuan-paper-annual.md`](skills/onepaw-ppt/reference/design_system/02_business/03/en/xuan-paper-annual.md)
 - **点名**: `用 xuan-paper-annual`
 
 ![Xuan Paper Annual](docs/themes/extra/xuan-paper-annual.jpg)
@@ -331,7 +331,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `lead-gray-quarterly` — Lead Gray Quarterly
 
 - **风格**: 铅灰季报风，财经报纸式数据监测
-- **文件**: [`04/en/lead-gray-quarterly.md`](skills/open-kimi-ppt/reference/design_system/02_business/04/en/lead-gray-quarterly.md)
+- **文件**: [`04/en/lead-gray-quarterly.md`](skills/onepaw-ppt/reference/design_system/02_business/04/en/lead-gray-quarterly.md)
 - **点名**: `用 lead-gray-quarterly`
 
 ![Lead Gray Quarterly](docs/themes/extra/lead-gray-quarterly.jpg)
@@ -339,7 +339,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `ink-green-market-trends` — Ink Green Market Trends
 
 - **风格**: 墨绿行情风，深色加密/市场季报
-- **文件**: [`05/en/ink-green-market-trends.md`](skills/open-kimi-ppt/reference/design_system/02_business/05/en/ink-green-market-trends.md)
+- **文件**: [`05/en/ink-green-market-trends.md`](skills/onepaw-ppt/reference/design_system/02_business/05/en/ink-green-market-trends.md)
 - **点名**: `用 ink-green-market-trends`
 
 ![Ink Green Market Trends](docs/themes/extra/ink-green-market-trends.jpg)
@@ -347,7 +347,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `orange-tech` — Orange Tech
 
 - **风格**: 橙色科技年报与商业洞察风
-- **文件**: [`06/en/orange-tech.md`](skills/open-kimi-ppt/reference/design_system/02_business/06/en/orange-tech.md)
+- **文件**: [`06/en/orange-tech.md`](skills/onepaw-ppt/reference/design_system/02_business/06/en/orange-tech.md)
 - **点名**: `用 orange-tech`
 
 ![Orange Tech](docs/themes/extra/orange-tech.jpg)
@@ -357,7 +357,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `mist-blue-travelogue` — Mist Blue Travelogue
 
 - **风格**: 雾蓝游记风，旅行酒店行业研究
-- **文件**: [`02/en/mist-blue-travelogue.md`](skills/open-kimi-ppt/reference/design_system/03_work/02/en/mist-blue-travelogue.md)
+- **文件**: [`02/en/mist-blue-travelogue.md`](skills/onepaw-ppt/reference/design_system/03_work/02/en/mist-blue-travelogue.md)
 - **点名**: `用 mist-blue-travelogue`
 
 ![Mist Blue Travelogue](docs/themes/extra/mist-blue-travelogue.jpg)
@@ -365,7 +365,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `color-stripes-documentary` — Color Stripes Documentary
 
 - **风格**: 彩条纪实风，影响力/ESG 长叙事
-- **文件**: [`04/en/color-stripes-documentary.md`](skills/open-kimi-ppt/reference/design_system/03_work/04/en/color-stripes-documentary.md)
+- **文件**: [`04/en/color-stripes-documentary.md`](skills/onepaw-ppt/reference/design_system/03_work/04/en/color-stripes-documentary.md)
 - **点名**: `用 color-stripes-documentary`
 
 ![Color Stripes Documentary](docs/themes/extra/color-stripes-documentary.jpg)
@@ -373,7 +373,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `red-white-business` — Red White Business
 
 - **风格**: 红白商务风，雇主品牌与组织能力
-- **文件**: [`06/en/red-white-business.md`](skills/open-kimi-ppt/reference/design_system/03_work/06/en/red-white-business.md)
+- **文件**: [`06/en/red-white-business.md`](skills/onepaw-ppt/reference/design_system/03_work/06/en/red-white-business.md)
 - **点名**: `用 red-white-business`
 
 ![Red White Business](docs/themes/extra/red-white-business.jpg)
@@ -383,7 +383,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `gold-orange-type-journal` — Gold Orange Type Journal
 
 - **风格**: 金橙字体趋势刊风
-- **文件**: [`04/en/gold-orange-type-journal.md`](skills/open-kimi-ppt/reference/design_system/04_promotion/04/en/gold-orange-type-journal.md)
+- **文件**: [`04/en/gold-orange-type-journal.md`](skills/onepaw-ppt/reference/design_system/04_promotion/04/en/gold-orange-type-journal.md)
 - **点名**: `用 gold-orange-type-journal`
 
 ![Gold Orange Type Journal](docs/themes/extra/gold-orange-type-journal.jpg)
@@ -391,7 +391,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `fresh-brand` — Fresh Brand
 
 - **风格**: 清新品牌权益/影响力报告风
-- **文件**: [`06/en/fresh-brand.md`](skills/open-kimi-ppt/reference/design_system/04_promotion/06/en/fresh-brand.md)
+- **文件**: [`06/en/fresh-brand.md`](skills/onepaw-ppt/reference/design_system/04_promotion/06/en/fresh-brand.md)
 - **点名**: `用 fresh-brand`
 
 ![Fresh Brand](docs/themes/extra/fresh-brand.jpg)
@@ -401,7 +401,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `pink-purple-diagnosis` — Soft Cloud-Layer Diagnostic Narrative
 
 - **风格**: 粉紫云层诊断叙事风
-- **文件**: [`01/en/pink-purple-diagnosis.md`](skills/open-kimi-ppt/reference/design_system/05_academic/01/en/pink-purple-diagnosis.md)
+- **文件**: [`01/en/pink-purple-diagnosis.md`](skills/onepaw-ppt/reference/design_system/05_academic/01/en/pink-purple-diagnosis.md)
 - **点名**: `用 pink-purple-diagnosis`
 
 ![Soft Cloud-Layer Diagnostic Narrative](docs/themes/extra/pink-purple-diagnosis.jpg)
@@ -409,7 +409,7 @@ Agent 会读取对应 `design.md`（或补充目录下的同名 `.md`）作为�
 #### `dark-themed-data` — Dark Themed Data
 
 - **风格**: 深色数据主题，加密/市场研究仪表盘
-- **文件**: [`06/en/dark-themed-data.md`](skills/open-kimi-ppt/reference/design_system/05_academic/06/en/dark-themed-data.md)
+- **文件**: [`06/en/dark-themed-data.md`](skills/onepaw-ppt/reference/design_system/05_academic/06/en/dark-themed-data.md)
 - **点名**: `用 dark-themed-data`
 
 ![Dark Themed Data](docs/themes/extra/dark-themed-data.jpg)

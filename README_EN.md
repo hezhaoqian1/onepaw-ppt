@@ -1,6 +1,10 @@
-# open-kimi-ppt-skill
+# onepaw-ppt
 
 [简体中文](README.md) | [English](README_EN.md)
+
+> [!NOTE]
+> This repository is a fork of [open-kimi-ppt-skill](https://github.com/WangEn/open-kimi-ppt-skill). The skill is named `onepaw-ppt` and is packaged as a zip for OnePaw: run `python tools/build_onepaw_zip.py` to get `dist/onepaw-ppt-<version>.zip`, upload it to the OnePaw skill pool and add it to an agent. No Node.js or other dependencies need to be installed.
+> `open-kimi-ppt-skill` on npm is the upstream version (skill name `open-kimi-ppt`) without this fork's changes; in this repository use `node bin/open-kimi-ppt-skill.js` wherever the text below says `npx open-kimi-ppt-skill`.
 
 [![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skill)](https://www.npmjs.com/package/open-kimi-ppt-skill)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
@@ -12,17 +16,17 @@ An unofficial presentation skill for AI coding agents, reverse-engineered from K
 
 ## Install
 
-Node.js 18 or later is required. **Install with `npx` — do not clone the repository**: the repo ships many images and is heavy, while `npx` only fetches the packaged skill files. The default location is the shared directory `~/.agents/skills/open-kimi-ppt` (Windows: `%USERPROFILE%\.agents\skills\open-kimi-ppt`), which most agents discover with a single install.
+Node.js 18 or later is required. **Install with `npx` — do not clone the repository**: the repo ships many images and is heavy, while `npx` only fetches the packaged skill files. The default location is the shared directory `~/.agents/skills/onepaw-ppt` (Windows: `%USERPROFILE%\.agents\skills\onepaw-ppt`), which most agents discover with a single install.
 
 ### Option 1: Ask your agent (recommended)
 
-Say "Install the open-kimi-ppt skill for me with npx", or have it run:
+Say "Install the onepaw-ppt skill for me with npx", or have it run:
 
 ```bash
 npx open-kimi-ppt-skill@latest install -y
 ```
 
-**WorkBuddy users**: WorkBuddy can't discover the shared directory. Say "Install the open-kimi-ppt skill for me with npx into WorkBuddy", or have it run:
+**WorkBuddy users**: WorkBuddy can't discover the shared directory. Say "Install the onepaw-ppt skill for me with npx into WorkBuddy", or have it run:
 
 ```bash
 # macOS / Linux
@@ -67,13 +71,13 @@ Once installed, just describe what you need. By default you get both the complet
 For more stable quality, put a style in the prompt (e.g. “dark product-launch look”) or attach a reference PPT template; topic-only prompts without style guidance tend to vary more.
 
 ```text
-Use open-kimi-ppt to create a liquid-glass-style deck about the history of Apple.
+Use onepaw-ppt to create a liquid-glass-style deck about the history of Apple.
 ```
 
 **Example: Xiaomi YU7 (~8 pages, images as backgrounds)**
 
 ```text
-Use open-kimi-ppt to create a Xiaomi YU7 intro PPT, with images as backgrounds from the web, about 8 pages.
+Use onepaw-ppt to create a Xiaomi YU7 intro PPT, with images as backgrounds from the web, about 8 pages.
 ```
 
 [![WorkBuddy generating Xiaomi YU7 PPT](docs/images/example-workbuddy-yu7.png)](docs/images/example-workbuddy-yu7.png)
@@ -81,7 +85,7 @@ Use open-kimi-ppt to create a Xiaomi YU7 intro PPT, with images as backgrounds f
 **Example: iPhone 17 Pro (~8 pages)**
 
 ```text
-Use open-kimi-ppt to create an iPhone 17 Pro intro PPT.
+Use onepaw-ppt to create an iPhone 17 Pro intro PPT.
 ```
 
 [![iPhone 17 Pro](docs/images/example-iphone-17pro.png)](docs/images/example-iphone-17pro.png)
@@ -89,7 +93,7 @@ Use open-kimi-ppt to create an iPhone 17 Pro intro PPT.
 **Example: on-slide element animations (live presentation)**
 
 ```text
-Use open-kimi-ppt to create a Xiaomi YU7 intro PPT, with images as backgrounds from the web, about 8 pages.
+Use onepaw-ppt to create a Xiaomi YU7 intro PPT, with images as backgrounds from the web, about 8 pages.
 Require element entrance animations.
 ```
 
@@ -124,7 +128,7 @@ Writable folder access requires a Chromium-based browser with the File System Ac
 ### Environment check and the visual-QA browser
 
 ```bash
-python3 ~/.agents/skills/open-kimi-ppt/scripts/doctor.py
+python3 ~/.agents/skills/onepaw-ppt/scripts/doctor.py
 ```
 
 Checks Python, the Node runtime used for PPTX export, the browser used for visual QA, and the skill files in a few seconds, exports a tiny test deck, and prints a verdict. It installs and changes nothing.
@@ -145,11 +149,11 @@ Checks Python, the Node runtime used for PPTX export, the browser used for visua
 - Format conversion: convert existing PPTX files to PPTD for further editing.
 - Secure by design: local editing only reads and writes project directories explicitly authorized by the user.
 
-## Why open-kimi-ppt
+## Why onepaw-ppt
 
-Most PPT skills fall into three buckets: assemble OOXML / pptxgenjs in code, render each slide as a full-bleed image, or ship a swipeable HTML deck. open-kimi-ppt takes a different path: a PPTD intermediate layer plus real editable PPTX output, meant to be easy for agents to write and still editable in PowerPoint.
+Most PPT skills fall into three buckets: assemble OOXML / pptxgenjs in code, render each slide as a full-bleed image, or ship a swipeable HTML deck. onepaw-ppt takes a different path: a PPTD intermediate layer plus real editable PPTX output, meant to be easy for agents to write and still editable in PowerPoint.
 
-| | open-kimi-ppt | Code-built PPTX (e.g. pptxgenjs) | Full-slide image PPT | Web HTML PPT |
+| | onepaw-ppt | Code-built PPTX (e.g. pptxgenjs) | Full-slide image PPT | Web HTML PPT |
 | --- | --- | --- | --- | --- |
 | Deliverable | PPTD project + PPTX | Usually PPTX only | Usually PPTX only | Single HTML file |
 | Agent-friendly | Clear per-page YAML | Lots of coordinates/API detail | Depends on image models & prompts | Strong HTML/CSS template constraints |
@@ -205,7 +209,7 @@ You can combine these: lock the look with a preset or template, then add one lin
 
 ## What is PPTD
 
-PPTD is a YAML-based presentation DSL — a simplified abstraction layer over OOXML. It preserves the essentials (theme, page layout, element positions) while dropping complex nesting such as Masters; every page is self-contained — what you see is what you get. See [reference/pptd.md](skills/open-kimi-ppt/reference/pptd.md) for the complete definition.
+PPTD is a YAML-based presentation DSL — a simplified abstraction layer over OOXML. It preserves the essentials (theme, page layout, element positions) while dropping complex nesting such as Masters; every page is self-contained — what you see is what you get. See [reference/pptd.md](skills/onepaw-ppt/reference/pptd.md) for the complete definition.
 
 A complete PPTD project looks like this:
 

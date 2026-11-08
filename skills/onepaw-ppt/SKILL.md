@@ -1,10 +1,10 @@
 ---
-name: open-kimi-ppt
+name: onepaw-ppt
 description: Create, edit, replicate, read, and export presentations. For every PPT task, the default deliverables are BOTH (1) a self-contained PPTD project folder containing the .pptd manifest plus pages/media dependencies and (2) a locally generated .pptx that uses system fonts (so it looks the same in PowerPoint and WPS on any computer) with fade slide transitions. Use for any presentation, PowerPoint, PPT/PPTX, slide deck, PPTD, infographic, or poster task unless the user explicitly requests another format. Deliver with normal local file/folder links using absolute paths.
 ---
 
 # Definition
-open-kimi-ppt is a presentation creation and export skill built around Moonshot AI's PPTD format and browser-side PPTX writer. It defines a YAML-format intermediate DSL (`.pptd`) that abstracts OOXML and keeps each page self-contained.
+onepaw-ppt is a presentation creation and export skill built around Moonshot AI's PPTD format and browser-side PPTX writer. It defines a YAML-format intermediate DSL (`.pptd`) that abstracts OOXML and keeps each page self-contained.
 
 **The default output is not PPTD-only.** Unless the user explicitly opts out, always produce both:
 
@@ -22,7 +22,7 @@ The .pptd format is a simplified abstraction layer over OOXML that follows basic
 Before generating, run the environment check once per session (a few seconds, changes nothing):
 
 ```bash
-python3 ~/.agents/skills/open-kimi-ppt/scripts/doctor.py
+python3 ~/.agents/skills/onepaw-ppt/scripts/doctor.py
 ```
 
 It checks Python, the Node runtime for PPTX export (an installed Node.js 18+, or the built-in runtime of an Electron desktop agent such as OnePaw, so Node.js does not have to be installed there), the headless Chrome/Edge used for image QA, and the bundled editor/WASM files, then exports a tiny test deck to prove the toolchain works.
@@ -142,7 +142,7 @@ When generating a PPT, adopt different production approaches for different user 
    - Run `scripts/export_images.py`. It loads the deck into the **local neo-ppt editor** (same offline mirror as `serve`) in a headless Chrome/Edge, chooses 导出 → 图片, unzips the images, and stitches all pages into one overview image. Text is rendered with the same system fonts as the exported PPTX. It **does not** call `www.kimi.com` and needs no extra installs. It usually takes 10–30 s; when your shell tool accepts a timeout, give image and PPTX export commands at least 300 s.
 
      ```bash
-     python3 ~/.agents/skills/open-kimi-ppt/scripts/export_images.py \
+     python3 ~/.agents/skills/onepaw-ppt/scripts/export_images.py \
        /abs/path/project/deck.pptd \
        --output /abs/path/project/.qa-images
      ```
@@ -190,12 +190,12 @@ When generating a PPT, adopt different production approaches for different user 
 
    ```bash
    # preferred: local patched WASM (offline)
-   python3 ~/.agents/skills/open-kimi-ppt/scripts/export_pptx.py \
+   python3 ~/.agents/skills/onepaw-ppt/scripts/export_pptx.py \
      /abs/path/project/deck.pptd \
      --output /abs/path/project/deck.pptx
 
    # optional: local neo-ppt browser UI (also offline)
-   python3 ~/.agents/skills/open-kimi-ppt/scripts/export_pptx.py \
+   python3 ~/.agents/skills/onepaw-ppt/scripts/export_pptx.py \
      /abs/path/project/deck.pptd \
      --output /abs/path/project/deck.pptx --browser
    ```

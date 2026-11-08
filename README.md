@@ -1,6 +1,10 @@
-# open-kimi-ppt-skill
+# onepaw-ppt
 
 [简体中文](README.md) | [English](README_EN.md)
+
+> [!NOTE]
+> 本仓库是 [open-kimi-ppt-skill](https://github.com/WangEn/open-kimi-ppt-skill) 的分支，技能名为 `onepaw-ppt`，并针对 OnePaw 打包成 zip：运行 `python tools/build_onepaw_zip.py` 得到 `dist/onepaw-ppt-<版本>.zip`，在 OnePaw 技能池上传后添加到智能体即可，无需安装 Node.js 或其他依赖。
+> npm 上的 `open-kimi-ppt-skill` 是上游版本（技能名 `open-kimi-ppt`），不含本仓库的改动；在本仓库中请用 `node bin/open-kimi-ppt-skill.js` 代替下文的 `npx open-kimi-ppt-skill`。
 
 [![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skill)](https://www.npmjs.com/package/open-kimi-ppt-skill)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
@@ -12,17 +16,17 @@
 
 ## 安装
 
-需要 Node.js 18 或更高版本。**请用 `npx` 安装，不要 clone 仓库**：仓库图片多、体积大，`npx` 只取打包后的 Skill 文件。默认装到共享目录 `~/.agents/skills/open-kimi-ppt`（Windows 为 `%USERPROFILE%\.agents\skills\open-kimi-ppt`），多数 Agent 装一次即可发现。
+需要 Node.js 18 或更高版本。**请用 `npx` 安装，不要 clone 仓库**：仓库图片多、体积大，`npx` 只取打包后的 Skill 文件。默认装到共享目录 `~/.agents/skills/onepaw-ppt`（Windows 为 `%USERPROFILE%\.agents\skills\onepaw-ppt`），多数 Agent 装一次即可发现。
 
 ### 方式一：让 AI 安装（推荐）
 
-对 AI 说「帮我用 npx 安装 open-kimi-ppt skill」，或直接让它执行：
+对 AI 说「帮我用 npx 安装 onepaw-ppt skill」，或直接让它执行：
 
 ```bash
 npx open-kimi-ppt-skill@latest install -y
 ```
 
-**WorkBuddy 用户**：它发现不了共享目录，对 AI 说「帮我用 npx 安装 open-kimi-ppt skill 到 WorkBuddy」，或让它执行：
+**WorkBuddy 用户**：它发现不了共享目录，对 AI 说「帮我用 npx 安装 onepaw-ppt skill 到 WorkBuddy」，或让它执行：
 
 ```bash
 # macOS / Linux
@@ -71,7 +75,7 @@ npx open-kimi-ppt-skill@latest install --target ~/.codex/skills --target ~/.clau
 **示例 1：小米 YU7（约 8 页，图片作背景）**
 
 ```text
-使用 open-kimi-ppt 做一个介绍小米 yu7的 PPT,要求图片做背景,素材从网上找,8 页左右
+使用 onepaw-ppt 做一个介绍小米 yu7的 PPT,要求图片做背景,素材从网上找,8 页左右
 ```
 
 | 在线编辑 PPTD | 导出 PPTX |
@@ -83,7 +87,7 @@ npx open-kimi-ppt-skill@latest install --target ~/.codex/skills --target ~/.clau
 **示例 2：DJI Pocket 4（图片作背景）**
 
 ```text
-使用 open-kimi-ppt 帮我生成DJI Pocket4 的 PPT,要求图片做背景,素材从网上找
+使用 onepaw-ppt 帮我生成DJI Pocket4 的 PPT,要求图片做背景,素材从网上找
 ```
 
 | 在线编辑 PPTD | 导出 PPTX |
@@ -93,7 +97,7 @@ npx open-kimi-ppt-skill@latest install --target ~/.codex/skills --target ~/.clau
 **示例 3：iPhone 17 Pro（约 8 页）**
 
 ```text
-使用 open-kimi-ppt 制作 iPhone 17 Pro 介绍 PPT
+使用 onepaw-ppt 制作 iPhone 17 Pro 介绍 PPT
 ```
 
 [![iPhone 17 Pro](docs/images/example-iphone-17pro.png)](docs/images/example-iphone-17pro.png)
@@ -101,7 +105,7 @@ npx open-kimi-ppt-skill@latest install --target ~/.codex/skills --target ~/.clau
 **示例 4：带页内元素动画（现场演示）**
 
 ```text
-使用 open-kimi-ppt 做一个介绍小米 yu7的 PPT,要求图片做背景,素材从网上找,8 页左右
+使用 onepaw-ppt 做一个介绍小米 yu7的 PPT,要求图片做背景,素材从网上找,8 页左右
 要求带元素入场动画
 ```
 
@@ -136,7 +140,7 @@ npx open-kimi-ppt-skill serve --port 56000
 ### 环境自检与视觉质检用的浏览器
 
 ```bash
-python3 ~/.agents/skills/open-kimi-ppt/scripts/doctor.py
+python3 ~/.agents/skills/onepaw-ppt/scripts/doctor.py
 ```
 
 几秒内检查 Python、PPTX 导出用的 Node 运行时、视觉质检用的浏览器和技能文件，并实际导出一份小样，给出能否使用的结论。不会安装或修改任何东西。
@@ -157,11 +161,11 @@ python3 ~/.agents/skills/open-kimi-ppt/scripts/doctor.py
 - 格式互转：将现有 PPTX 转换为 PPTD 后继续修改。
 - 安全可控：本地编辑仅在用户明确授权的项目目录内读写文件。
 
-## 为什么选 open-kimi-ppt
+## 为什么选 onepaw-ppt
 
-常见 PPT Skill 大致分三类：用代码库直接拼 OOXML / pptxgenjs、整页生成图片再塞进 PPTX、或输出网页 HTML 翻页。open-kimi-ppt 走的是 PPTD 中间层 + 真实可编辑 PPTX 这条路线，想让 Agent 好写、人好看、PowerPoint 能改。
+常见 PPT Skill 大致分三类：用代码库直接拼 OOXML / pptxgenjs、整页生成图片再塞进 PPTX、或输出网页 HTML 翻页。onepaw-ppt 走的是 PPTD 中间层 + 真实可编辑 PPTX 这条路线，想让 Agent 好写、人好看、PowerPoint 能改。
 
-| | open-kimi-ppt | 代码拼 PPTX（如 pptxgenjs） | 整页图片 PPT | 网页 HTML PPT |
+| | onepaw-ppt | 代码拼 PPTX（如 pptxgenjs） | 整页图片 PPT | 网页 HTML PPT |
 | --- | --- | --- | --- | --- |
 | 交付物 | PPTD 项目 + PPTX | 多为仅 PPTX | 多为仅 PPTX | 单文件 HTML |
 | Agent 友好度 | YAML 逐页描述，结构清晰 | 坐标/API 细节多，易排版翻车 | 依赖出图模型与提示词 | HTML/CSS 模板约束强 |
@@ -217,7 +221,7 @@ python3 ~/.agents/skills/open-kimi-ppt/scripts/doctor.py
 
 ## 什么是 PPTD
 
-PPTD 是一种基于 YAML 的演示文稿 DSL，是 OOXML 之上的简化抽象层：保留主题、页面布局、元素位置等核心信息，去除了 Master 等复杂嵌套，每页自包含、所见即所得。完整的格式定义见 [reference/pptd.md](skills/open-kimi-ppt/reference/pptd.md)。
+PPTD 是一种基于 YAML 的演示文稿 DSL，是 OOXML 之上的简化抽象层：保留主题、页面布局、元素位置等核心信息，去除了 Master 等复杂嵌套，每页自包含、所见即所得。完整的格式定义见 [reference/pptd.md](skills/onepaw-ppt/reference/pptd.md)。
 
 一个完整的 PPTD 项目目录结构如下：
 

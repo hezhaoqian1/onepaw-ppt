@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that this computer can run the open-kimi-ppt skill, then prove it.
+"""Check that this computer can run the onepaw-ppt skill, then prove it.
 
 Usage:
     python scripts/doctor.py           # checks + a tiny PPTX export and image QA run
@@ -30,7 +30,7 @@ import export_pptx  # noqa: E402
 
 TEST_MANIFEST = """\
 version: v2
-title: open-kimi-ppt doctor
+title: onepaw-ppt doctor
 size: [960, 540]
 pages:
   - pages/1.page

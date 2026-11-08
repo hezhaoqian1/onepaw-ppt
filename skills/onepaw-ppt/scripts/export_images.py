@@ -139,7 +139,7 @@ def export_images(
         )
 
     log(f"manifest: {manifest}")
-    with temporary_directory(prefix="open-kimi-ppt-images-") as temp_name:
+    with temporary_directory(prefix="onepaw-ppt-images-") as temp_name:
         download_dir = Path(temp_name) / "downloads"
         download_dir.mkdir()
         with EditorHost(payload, font_fallbacks=map_fonts) as host:
@@ -215,7 +215,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             args.input, output, args.keep_browser_raw, args.force, map_fonts=not args.keep_fonts
         )
     except (ExportError, CDPError, OSError, subprocess.SubprocessError) as exc:
-        print(f"open-kimi-ppt image export failed: {exc}", file=sys.stderr)
+        print(f"onepaw-ppt image export failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
