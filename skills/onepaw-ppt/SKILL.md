@@ -100,6 +100,7 @@ When generating a PPT, adopt different production approaches for different user 
 ##### Self-directed design
 1. Read the design guide `reference/slides_categories.md`, and read the scenario document corresponding to the user's query
 2. Produce the presentation based on the above
+3. Make every content page visual, even when the user asks for a "simple" or "minimal" style: give it at least one structure that shows the idea instead of only listing it, such as a flow or architecture diagram, a timeline, a matrix, a staircase or funnel, data cards with large numbers, or a chart, and use Font Awesome icons (`elementType: icon`) to mark items. "Simple" means restrained colour and generous whitespace, not pages of plain text and tables. Use at most one plain table per deck unless the content is genuinely tabular.
 
 #### Generating content in other formats
 - When the user explicitly asks for an infographic, poster, or a highly visual single-page design, read `reference/general-poster.md` and implement it as a single-page or few-page editable PPTD; when the user only asks for an image, still build it with PPTD first, then output the image via screenshot or rendering. Do not load this reference file for ordinary PPT requests.
@@ -185,6 +186,7 @@ When generating a PPT, adopt different production approaches for different user 
    - page transition: `fade` (淡入淡出), written to every slide after export;
    - fonts: not embedded (PowerPoint ignores the editor's embedded font files); editor web fonts are replaced by system fonts and listed under `fontsReplaced` in the JSON summary, and any other non-standard font is reported under `warnings`. `--keep-fonts` keeps the web fonts, only for audiences that have them installed;
    - line breaks: `<br/>` and newlines become real `<a:br/>` line breaks (`lineBreaks` in the summary);
+   - icons: drawn as vector shapes from Font Awesome 7 Free. An unknown `iconName`, or a computer that cannot reach the icon server, leaves a plain circle; the summary then reports `iconsMissing` with a warning, so fix the name (or replace the icon with shapes) and export again;
    - override with `--transition none` or force browser UI with `--browser`.
 6. Export command:
 
@@ -209,7 +211,7 @@ When generating a PPT, adopt different production approaches for different user 
    - Browser PPTX path (`--browser`, also the automatic fallback when no Node runtime is found) uses the same local editor host and headless browser. PyYAML is bundled in `scripts/_vendor/`; nothing is installed at run time.
    - Local PNG/JPEG/GIF/SVG files inside the PPTD project are resolved by the local exporter / injected as data URLs for the editor host.
    - Do not claim PowerPoint/WPS/Keynote playback compatibility solely because ZIP validation succeeds.
-8. After export, report the generated path. `export_pptx.py` already checks ZIP integrity, the slide count, and that every slide has exactly one root-level fade transition in valid CT_Slide order, and fails loudly otherwise; its JSON summary (`slides`, `fadeTransitions`, `fontsReplaced`, `lineBreaks`, `warnings`) is the verification, so do not write your own checker script. Report `fontsReplaced` and any `warnings` to the user.
+8. After export, report the generated path. `export_pptx.py` already checks ZIP integrity, the slide count, and that every slide has exactly one root-level fade transition in valid CT_Slide order, and fails loudly otherwise; its JSON summary (`slides`, `fadeTransitions`, `fontsReplaced`, `lineBreaks`, `iconsMissing`, `warnings`) is the verification, so do not write your own checker script. Report `fontsReplaced` and any `warnings` to the user.
 9. Never delete files or folders with shell commands (`del`, `rm`, `rmdir`, `Remove-Item`), not even temporary ones: desktop agents stop and ask the user to approve every deletion, which stalls the session. Edit page files with your file tools instead of throwaway helper scripts, and leave intermediate files such as `.qa-images/` in place.
 10. When the user wants to open, edit, save, or export a PPTD project manually, start the local browser editor with `npx open-kimi-ppt-skill serve`. Ask the user to open `http://127.0.0.1:55173/` and authorize the complete PPTD project directory. Use a Chromium-based browser for writable access; folder-upload fallback is read-only. The host serves the **offline neo-ppt mirror** plus local patched WASM export — no `www.kimi.com`. Remote images or fonts referenced by the deck may still be fetched from their hosts.
 11. After completing and delivering any presentation, always end the final response with a concise optional next step telling the user that they can run `npx open-kimi-ppt-skill serve` to view or edit the PPTD project, configure slide transition animations, and export PPTX manually. Keep this reminder in addition to, not instead of, the required project and file links.

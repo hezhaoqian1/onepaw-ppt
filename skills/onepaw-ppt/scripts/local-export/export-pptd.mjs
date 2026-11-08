@@ -217,6 +217,80 @@ function convertLineBreaks(value, counter) {
   return value;
 }
 
+// ---------- icons (official Wt) ----------
+// The editor looks up every icon element's Font Awesome SVG path before calling
+// the writer; an icon without a path is written as a plain ellipse, so PowerPoint
+// showed coloured dots where the preview had icons. Reuse the editor's own
+// resolver (alias table, icon URLs, path encoding) so the PPTX matches the
+// preview. Its modules read a few browser globals at import time, so provide
+// stand-ins only while importing.
+const EDITOR_ICON_CHUNK = 'faIcons-u_2ozSt4.js';
+const ICON_FETCH_TIMEOUT_MS = 10_000;
+
+async function loadIconResolver() {
+  for (const dir of editorAssetDirs()) {
+    const file = path.join(dir, EDITOR_ICON_CHUNK);
+    if (!fs.existsSync(file)) continue;
+    const shims = {
+      window: globalThis,
+      navigator: { userAgent: 'node' },
+      location: { host: '', origin: 'http://127.0.0.1' },
+      document: { documentElement: { clientWidth: 1280 }, getElementById: () => null },
+    };
+    const added = [];
+    for (const [key, value] of Object.entries(shims)) {
+      if (key in globalThis) continue;
+      Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+      added.push(key);
+    }
+    try {
+      const mod = await import(pathToFileURL(file).href);
+      if (typeof mod.n === 'function') return mod.n;
+    } catch (error) {
+      console.warn(`[warn] editor icon resolver unavailable (${error.message})`);
+    } finally {
+      for (const key of added) delete globalThis[key];
+    }
+  }
+  return null;
+}
+
+async function resolveIcons(pptd) {
+  const targets = [];
+  for (const page of pptd.pages ?? []) {
+    for (const [index, element] of (page.elements ?? []).entries()) {
+      if (element?.elementType === 'icon') targets.push({ page, index, element });
+    }
+  }
+  const result = { total: targets.length, resolved: 0, missing: [] };
+  if (!targets.length) return result;
+  const resolve = await loadIconResolver();
+  let found = targets.map(() => null);
+  if (resolve && typeof globalThis.fetch === 'function') {
+    // The icons come from the same CDN the editor uses; never let a stalled
+    // connection hang the export.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init = {}) =>
+      realFetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(ICON_FETCH_TIMEOUT_MS) });
+    try {
+      found = await Promise.all(targets.map(({ element }) => resolve(String(element.iconName)).catch(() => null)));
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  }
+  targets.forEach(({ page, index, element }, i) => {
+    const icon = found[i];
+    page.elements[index] = {
+      ...element,
+      fill: element.fill ?? { type: 'solid', color: '#000000' },
+      ...(icon ? { path: icon.path, viewBox: icon.viewBox } : {}),
+    };
+    if (icon) result.resolved += 1;
+    else result.missing.push(String(element.iconName));
+  });
+  return result;
+}
+
 function normalizeElement(el) {
   // Official it()/at(): ensure custom shapes get viewBox from bounds
   if (el.elementType === 'shape') {
@@ -691,6 +765,15 @@ Env: KIMI_COOKIE, KIMI_ORIGIN`);
   pptd = JSON.parse(JSON.stringify(pptd));
   const images = await resolveImages(pptd, projectRoot);
   console.log(`      ${Object.keys(images).length} image(s)`);
+  const icons = await resolveIcons(pptd);
+  if (icons.total) {
+    console.log(`      ${icons.resolved}/${icons.total} icon(s)`);
+    if (icons.missing.length) {
+      console.warn(
+        `[warn] icons not found or not downloadable, shown as plain circles: ${[...new Set(icons.missing)].join(', ')}`,
+      );
+    }
+  }
 
   console.log('[3/5] signature');
   let signature = '';
