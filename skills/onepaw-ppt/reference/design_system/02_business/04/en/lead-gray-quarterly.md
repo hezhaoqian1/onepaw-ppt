@@ -185,7 +185,7 @@ Contrast floor: on `ink`, only white/light-teal text; data labels on deep `teal`
 - [ ] All colors come from the §4 tokens; chart coloring follows the §7 recipes; no gradients/shadows.
 - [ ] Only two font families: serif `{Oranienbaum, 思源宋体}` and sans-serif `MiSans`; sizes follow §3.
 - [ ] The header wordmark, beige footer band + page number, and under-chart source notes are present on every page at consistent positions.
-- [ ] `kimi-ppt check` reports no errors; page-by-page screenshots show no overlap, no cropping, no overflow, no unexpected line wraps; dark-background white-text contrast passes.
+- [ ] image QA (`scripts/export_images.py`): page-by-page screenshots show no overlap, no cropping, no overflow, no unexpected line wraps; dark-background white-text contrast passes.
 - [ ] Final directory: `deck.pptx` (the only PPTX) + the complete PPTD bundle + `final-screenshots/pages/1.jpg~6.jpg`.
 
 - No default use of cards: unless the user explicitly requests it, it is strictly forbidden to use rounded rectangles or rectangular cards to build hierarchy or alignment — line segments, whitespace, and font and font-size differences are better solutions.

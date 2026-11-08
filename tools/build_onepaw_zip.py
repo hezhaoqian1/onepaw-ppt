@@ -5,13 +5,13 @@ Usage:
     python tools/build_onepaw_zip.py [--output-dir DIR]
 
 Output: dist/onepaw-ppt-<version>.zip, containing a single top-level
-``open-kimi-ppt/`` folder (SKILL.md + reference + scripts + editor + WASM).
+``onepaw-ppt/`` folder (SKILL.md + reference + scripts + editor + WASM).
 
 The skill tree is staged with the project's own installer, so the zip has the
 same layout as ``open-kimi-ppt-skill install``. On top of that, SKILL.md is
 adapted for agents that do not install into ``~/.agents/skills``:
 
-* ``python3 ~/.agents/skills/open-kimi-ppt/scripts/...`` -> ``python scripts/...``
+* ``python3 ~/.agents/skills/onepaw-ppt/scripts/...`` -> ``python scripts/...``
   (paths relative to the skill directory, which OnePaw shows the agent);
 * ``npx open-kimi-ppt-skill serve`` -> ``python scripts/serve.py --open`` (bundled
   editor server, started in the background with Node.js or the desktop agent's
@@ -34,7 +34,7 @@ import zipfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SKILL_NAME = "open-kimi-ppt"
+SKILL_NAME = "onepaw-ppt"
 
 PATH_NOTE = """\
 > **Skill paths (OnePaw / uploaded-zip build).** Every `scripts/...` path in this file is
@@ -76,7 +76,7 @@ for (let index = 0; index < args.length; index += 1) {
 }
 
 const { server, url } = await startEditorServer({ port });
-console.log(`Open Kimi PPT editor is running at ${url}`);
+console.log(`OnePaw PPT editor is running at ${url}`);
 console.log("Press Ctrl+C to stop the server.");
 
 if (open) {
@@ -135,7 +135,7 @@ def main():
     args = parser.parse_args()
     url = f"http://127.0.0.1:{args.port}/"
     if answering(url):
-        print(f"Open Kimi PPT editor is already running at {url}")
+        print(f"OnePaw PPT editor is already running at {url}")
         return 0
     try:
         command, env, label = node_runtime()
@@ -144,7 +144,7 @@ def main():
         return 1
     script = Path(__file__).resolve().with_name("serve.mjs")
     argv = [*command, str(script), "--port", str(args.port)] + (["--open"] if args.open else [])
-    log_path = Path(tempfile.gettempdir()) / f"open-kimi-ppt-editor-{args.port}.log"
+    log_path = Path(tempfile.gettempdir()) / f"onepaw-ppt-editor-{args.port}.log"
     options = {}
     if sys.platform == "win32":
         options["creationflags"] = (
@@ -165,7 +165,7 @@ def main():
     deadline = time.monotonic() + 20
     while time.monotonic() < deadline:
         if answering(url):
-            print(f"Open Kimi PPT editor is running at {url} ({label})")
+            print(f"OnePaw PPT editor is running at {url} ({label})")
             return 0
         time.sleep(0.3)
     print(f"the editor did not start; log: {log_path}", file=sys.stderr)
@@ -222,13 +222,13 @@ def adapt_skill(skill: Path) -> None:
 
 def write_zip(skill: Path, destination: Path) -> int:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    # Skip local caches (e.g. __pycache__ left behind by running the tests).
+    # Skip local caches (e.g. __pycache__ or .ruff_cache left behind by tests and linters).
     files = sorted(
         path
         for path in skill.rglob("*")
         if path.is_file()
         and path.suffix != ".pyc"
-        and not {"__pycache__", ".pytest_cache"} & set(path.relative_to(skill).parts)
+        and not {"__pycache__", ".pytest_cache", ".ruff_cache"} & set(path.relative_to(skill).parts)
     )
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in files:

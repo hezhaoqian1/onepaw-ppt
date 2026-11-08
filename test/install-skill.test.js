@@ -17,42 +17,42 @@ function runCli(args, env = process.env) {
 }
 
 test("installs the packaged skill into a custom skills directory", () => {
-  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+  const root = mkdtempSync(join(tmpdir(), "onepaw-ppt-test-"));
   const target = join(root, "skills");
 
   try {
     const result = runCli(["install", "--target", target]);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(existsSync(join(target, "open-kimi-ppt", "SKILL.md")), true);
-    assert.equal(existsSync(join(target, "open-kimi-ppt", "scripts", "export_pptx.py")), true);
+    assert.equal(existsSync(join(target, "onepaw-ppt", "SKILL.md")), true);
+    assert.equal(existsSync(join(target, "onepaw-ppt", "scripts", "export_pptx.py")), true);
     assert.equal(
-      existsSync(join(target, "open-kimi-ppt", "scripts", "local-export", "pptd_wasm_bg.wasm")),
+      existsSync(join(target, "onepaw-ppt", "scripts", "local-export", "pptd_wasm_bg.wasm")),
       true,
     );
     assert.equal(
-      existsSync(join(target, "open-kimi-ppt", "editor", "index.html")),
+      existsSync(join(target, "onepaw-ppt", "editor", "index.html")),
       true,
     );
-    assert.equal(existsSync(join(target, "open-kimi-ppt", "_user_meta.json")), false);
+    assert.equal(existsSync(join(target, "onepaw-ppt", "_user_meta.json")), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
 test("installs into ~/.agents/skills when no target is provided (non-interactive)", () => {
-  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+  const root = mkdtempSync(join(tmpdir(), "onepaw-ppt-test-"));
 
   try {
     const result = runCli([], { ...process.env, HOME: root, USERPROFILE: root, CODEX_HOME: undefined });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(existsSync(join(root, ".agents", "skills", "open-kimi-ppt", "SKILL.md")), true);
+    assert.equal(existsSync(join(root, ".agents", "skills", "onepaw-ppt", "SKILL.md")), true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
 test("supports -y for non-interactive default install", () => {
-  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+  const root = mkdtempSync(join(tmpdir(), "onepaw-ppt-test-"));
 
   try {
     const result = runCli(["install", "-y"], {
@@ -62,29 +62,29 @@ test("supports -y for non-interactive default install", () => {
       CODEX_HOME: undefined,
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(existsSync(join(root, ".agents", "skills", "open-kimi-ppt", "SKILL.md")), true);
+    assert.equal(existsSync(join(root, ".agents", "skills", "onepaw-ppt", "SKILL.md")), true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
 test("installs into multiple --target directories", () => {
-  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+  const root = mkdtempSync(join(tmpdir(), "onepaw-ppt-test-"));
   const first = join(root, "codex", "skills");
   const second = join(root, "claude", "skills");
 
   try {
     const result = runCli(["install", "--target", first, "--target", second]);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(existsSync(join(first, "open-kimi-ppt", "SKILL.md")), true);
-    assert.equal(existsSync(join(second, "open-kimi-ppt", "SKILL.md")), true);
+    assert.equal(existsSync(join(first, "onepaw-ppt", "SKILL.md")), true);
+    assert.equal(existsSync(join(second, "onepaw-ppt", "SKILL.md")), true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
 test("--all installs into detected agent directories and skips missing ones", () => {
-  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+  const root = mkdtempSync(join(tmpdir(), "onepaw-ppt-test-"));
 
   try {
     mkdirSync(join(root, ".agents"), { recursive: true });
@@ -101,7 +101,7 @@ test("--all installs into detected agent directories and skips missing ones", ()
 
     for (const relative of [[".agents", "skills"], [".codex", "skills"], [".claude", "skills"]]) {
       assert.equal(
-        existsSync(join(root, ...relative, "open-kimi-ppt", "SKILL.md")),
+        existsSync(join(root, ...relative, "onepaw-ppt", "SKILL.md")),
         true,
         relative.join("/"),
       );
@@ -117,7 +117,7 @@ test("--all installs into detected agent directories and skips missing ones", ()
 });
 
 test("--all warns and installs nothing when no agent directory exists", () => {
-  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+  const root = mkdtempSync(join(tmpdir(), "onepaw-ppt-test-"));
 
   try {
     const result = runCli(["install", "--all"], {
@@ -135,9 +135,9 @@ test("--all warns and installs nothing when no agent directory exists", () => {
 });
 
 test("overwrites an existing installation by default", () => {
-  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+  const root = mkdtempSync(join(tmpdir(), "onepaw-ppt-test-"));
   const target = join(root, "skills");
-  const skillFile = join(target, "open-kimi-ppt", "SKILL.md");
+  const skillFile = join(target, "onepaw-ppt", "SKILL.md");
 
   try {
     assert.equal(runCli(["--target", target]).status, 0);
@@ -145,22 +145,22 @@ test("overwrites an existing installation by default", () => {
 
     const result = runCli(["--target", target]);
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /Updated open-kimi-ppt/);
-    assert.match(readFileSync(skillFile, "utf8"), /^---\nname: open-kimi-ppt/m);
+    assert.match(result.stdout, /Updated onepaw-ppt/);
+    assert.match(readFileSync(skillFile, "utf8"), /^---\nname: onepaw-ppt/m);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
 test("accepts legacy --force without changing overwrite behavior", () => {
-  const root = mkdtempSync(join(tmpdir(), "open-kimi-ppt-test-"));
+  const root = mkdtempSync(join(tmpdir(), "onepaw-ppt-test-"));
   const target = join(root, "skills");
 
   try {
     assert.equal(runCli(["--target", target]).status, 0);
     const result = runCli(["--target", target, "--force"]);
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /Updated open-kimi-ppt/);
+    assert.match(result.stdout, /Updated onepaw-ppt/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

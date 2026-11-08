@@ -81,7 +81,7 @@ class QuietHandler(SimpleHTTPRequestHandler):
 
 
 def log(message: str) -> None:
-    print(f"[open-kimi-ppt] {message}", file=sys.stderr, flush=True)
+    print(f"[onepaw-ppt] {message}", file=sys.stderr, flush=True)
 
 
 def _registry_path_entries() -> List[str]:
@@ -159,7 +159,7 @@ def run_command(
     system locale (GBK on zh-CN Windows) can also raise UnicodeDecodeError.
     Writing to a UTF-8 file avoids both failures.
     """
-    handle, sink_path = tempfile.mkstemp(prefix="open-kimi-ppt-", suffix=".log")
+    handle, sink_path = tempfile.mkstemp(prefix="onepaw-ppt-", suffix=".log")
     os.close(handle)
     sink = Path(sink_path)
     output = ""
@@ -1008,7 +1008,7 @@ def resolve_editor_root() -> Path:
     if env:
         candidates.append(Path(env).expanduser().resolve())
     candidates.append(SKILL_DIR / "editor")
-    # monorepo / npm package: skills/open-kimi-ppt → package root
+    # monorepo / npm package: skills/onepaw-ppt → package root
     candidates.append(SKILL_DIR.parent.parent / "editor")
     for candidate in candidates:
         if (candidate / "index.html").is_file():
@@ -1198,7 +1198,7 @@ def export_pptx(
     log(f"manifest: {manifest}")
     log(f"defaults: transition={transition}, embed_fonts={'on' if embed_fonts else 'off'}")
 
-    with temporary_directory(prefix="open-kimi-ppt-export-") as temp_name:
+    with temporary_directory(prefix="onepaw-ppt-export-") as temp_name:
         download_dir = Path(temp_name) / "downloads"
         download_dir.mkdir()
         with EditorHost(payload, font_fallbacks=map_fonts) as host:
@@ -1309,7 +1309,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         warn_dropped_line_breaks(manifest, summary)
     except (ExportError, CDPError, OSError, subprocess.SubprocessError) as exc:
-        print(f"open-kimi-ppt export failed: {exc}", file=sys.stderr)
+        print(f"onepaw-ppt export failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0

@@ -4,6 +4,15 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.4.0] - 2026-11-09
+
+### 变更
+
+- 技能改名为 `onepaw-ppt`（目录 `skills/onepaw-ppt`，安装目录 `~/.agents/skills/onepaw-ppt`）。npm 包与命令行仍叫 `open-kimi-ppt-skill`。之前装过 `open-kimi-ppt` 的，可删除旧目录后重新安装
+- OnePaw zip（`tools/build_onepaw_zip.py`）零依赖运行：不再需要 npm、agent-browser、Pillow、websocket-client；PyYAML 随技能打包；没有 Node.js 时借用 OnePaw 自带的 Electron 运行；图片质检直接驱动本机 Chrome / Edge
+- PPTX 中的网页字体（MiSans 等）导出时替换为系统字体（微软雅黑、Arial 等），PowerPoint / WPS 显示一致；`<br/>` 转为真正的换行
+- 新增 `scripts/doctor.py` 环境自检；SKILL.md 适配输出上限较小的模型，并避免触发删除审批
+
 ## [1.3.0] - 2026-08-07
 
 ### 新增

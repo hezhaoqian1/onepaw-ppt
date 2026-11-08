@@ -4,6 +4,15 @@
 
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-11-09
+
+### Changed
+
+- The skill is renamed to `onepaw-ppt` (folder `skills/onepaw-ppt`, installed to `~/.agents/skills/onepaw-ppt`). The npm package and CLI keep the name `open-kimi-ppt-skill`. If you installed `open-kimi-ppt` before, remove the old folder and reinstall
+- The OnePaw zip (`tools/build_onepaw_zip.py`) runs with zero installs: no npm, agent-browser, Pillow or websocket-client; PyYAML is bundled; without Node.js the scripts use OnePaw's built-in Electron runtime; image QA drives the local Chrome or Edge directly
+- Web fonts in the PPTX (MiSans, ...) are replaced with system fonts (Microsoft YaHei, Arial, ...) on export so PowerPoint and WPS show the same result; `<br/>` becomes a real line break
+- New `scripts/doctor.py` preflight check; SKILL.md now fits models with small output limits and avoids deletion approval prompts
+
 ## [1.3.0] - 2026-08-07
 
 ### Added

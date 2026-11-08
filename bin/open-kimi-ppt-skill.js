@@ -8,7 +8,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { fileURLToPath } from "node:url";
 import { startEditorServer } from "../lib/editor-server.js";
 
-const SKILL_NAME = "open-kimi-ppt";
+const SKILL_NAME = "onepaw-ppt";
 const MIN_NODE_MAJOR = 18;
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceDirectory = join(packageRoot, "skills", SKILL_NAME);
@@ -67,7 +67,7 @@ In an interactive terminal (no --target / --yes / --all), a checklist is shown:
 For agents / CI, prefer:
   npx open-kimi-ppt-skill@latest install -y
 
-Re-running install replaces an existing open-kimi-ppt installation.
+Re-running install replaces an existing onepaw-ppt installation.
 Run "open-kimi-ppt-skill serve --help" for server options.
 `);
 }
@@ -201,7 +201,7 @@ async function promptInstallTargets() {
     if (!initial) {
       output.write(`\u001b[${lines}A`);
     }
-    writeLine("Install open-kimi-ppt to which skills directories?");
+    writeLine("Install onepaw-ppt to which skills directories?");
     writeLine("↑/↓ move · space select · a all · enter confirm · ctrl+c cancel");
     for (const [index, choice] of choices.entries()) {
       const pointer = index === cursor ? "❯" : " ";
@@ -397,7 +397,7 @@ async function main() {
   }
 
   const { server, url } = await startEditorServer({ port: options.port });
-  console.log(`Open Kimi PPT editor is running at ${url}`);
+  console.log(`OnePaw PPT editor is running at ${url}`);
   console.log("Press Ctrl+C to stop the server.");
   if (options.open) openBrowser(url);
 
