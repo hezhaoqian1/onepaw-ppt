@@ -31,6 +31,7 @@ from export_pptx import (
     find_download,
     find_manifest,
     log,
+    pip_install,
     ref_by_name,
     run_command,
     serve_local_editor,
@@ -77,11 +78,8 @@ def ensure_pillow() -> Tuple[Any, Any, Any]:
 
         return Image, ImageDraw, ImageFont
     except ImportError:
-        log("Pillow is required for stitching; installing pillow with pip --user")
-        process = run_command(
-            [sys.executable, "-m", "pip", "install", "--user", "pillow"],
-            timeout=300,
-        )
+        log("Pillow is required for stitching; installing pillow with pip")
+        process = pip_install("pillow")
         if process.returncode != 0:
             raise ExportError(f"failed to install Pillow:\n{process.stdout[-2000:]}")
         from PIL import Image, ImageDraw, ImageFont
@@ -182,11 +180,8 @@ def ensure_websocket() -> Any:
 
         return websocket
     except ImportError:
-        log("websocket-client is required for dialog automation; installing with pip --user")
-        process = run_command(
-            [sys.executable, "-m", "pip", "install", "--user", "websocket-client"],
-            timeout=300,
-        )
+        log("websocket-client is required for dialog automation; installing with pip")
+        process = pip_install("websocket-client")
         if process.returncode != 0:
             raise ExportError(f"failed to install websocket-client:\n{process.stdout[-2000:]}")
         import websocket

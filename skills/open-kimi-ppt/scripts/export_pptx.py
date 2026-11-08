@@ -15,11 +15,13 @@ from __future__ import annotations
 
 import argparse
 import base64
+import importlib
 import json
 import mimetypes
 import os
 import re
 import shutil
+import site
 import socket
 import subprocess
 import sys
@@ -144,15 +146,35 @@ def default_downloads_dir() -> Path:
     return home / "Downloads"
 
 
+def pip_install(package: str) -> subprocess.CompletedProcess[str]:
+    """Install a soft dependency where this interpreter will import it from.
+
+    ``--user`` only helps when user site-packages is enabled. Embedded/portable
+    Pythons (``._pth`` files, e.g. the one bundled with desktop agents) and venvs
+    disable it, so a ``--user`` install would succeed yet stay unimportable.
+    """
+    use_user_site = bool(site.ENABLE_USER_SITE)
+    command = [sys.executable, "-m", "pip", "install"]
+    if use_user_site:
+        command.append("--user")
+    command.append(package)
+    process = run_command(command, timeout=300)
+    if process.returncode == 0:
+        if use_user_site:
+            # A user site created by this very install is not on sys.path yet.
+            user_site = site.getusersitepackages()
+            if user_site not in sys.path:
+                site.addsitedir(user_site)
+        importlib.invalidate_caches()
+    return process
+
+
 def ensure_pyyaml() -> Any:
     try:
         import yaml
     except ImportError:
-        log("PyYAML is required; installing pyyaml with pip --user")
-        process = run_command(
-            [sys.executable, "-m", "pip", "install", "--user", "pyyaml"],
-            timeout=300,
-        )
+        log("PyYAML is required; installing pyyaml with pip")
+        process = pip_install("pyyaml")
         if process.returncode != 0:
             raise ExportError(
                 "failed to install PyYAML with pip --user:\n"
@@ -873,12 +895,18 @@ def export_pptx_local(
         str(wasm_path),
     ]
 
+    # OKP_PYTHON lets the exporter's YAML fallback reuse this interpreter, which
+    # already has PyYAML (a bare "python3" may be missing or a different install).
+    # Node prints UTF-8; decode explicitly so zh-CN Windows (GBK) cannot choke.
     process = subprocess.run(
         cmd,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         timeout=300,
+        env={**os.environ, "OKP_PYTHON": sys.executable},
     )
     if process.returncode != 0:
         raise ExportError(
