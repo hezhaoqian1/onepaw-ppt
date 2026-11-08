@@ -3,7 +3,7 @@
 [简体中文](README.md) | [English](README_EN.md)
 
 > [!NOTE]
-> 本仓库是 [open-kimi-ppt-skill](https://github.com/WangEn/open-kimi-ppt-skill) 的分支，技能名为 `onepaw-ppt`，并针对 OnePaw 打包成 zip：运行 `python tools/build_onepaw_zip.py` 得到 `dist/onepaw-ppt-<版本>.zip`，在 OnePaw 技能池上传后添加到智能体即可，无需安装 Node.js 或其他依赖。
+> 本仓库是 [open-kimi-ppt-skill](https://github.com/WangEn/open-kimi-ppt-skill) 的分支，技能名为 `onepaw-ppt`，并针对 OnePaw 打包成 zip：运行 `python tools/build_onepaw_zip.py` 得到 `dist/onepaw-ppt-<版本>.zip`，在 OnePaw 技能池上传后添加到智能体即可，无需安装 Node.js 或其他依赖。安装、环境检查和演示话术见 [docs/onepaw.md](docs/onepaw.md)，安装包也可从 [Releases](https://github.com/hezhaoqian1/onepaw-ppt/releases) 下载。
 > npm 上的 `open-kimi-ppt-skill` 是上游版本（技能名 `open-kimi-ppt`），不含本仓库的改动；在本仓库中请用 `node bin/open-kimi-ppt-skill.js` 代替下文的 `npx open-kimi-ppt-skill`。
 
 [![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skill)](https://www.npmjs.com/package/open-kimi-ppt-skill)
@@ -148,6 +148,7 @@ python3 ~/.agents/skills/onepaw-ppt/scripts/doctor.py
 - **不需要额外安装**：PyYAML 已随技能打包；视觉质检直接通过 DevTools 协议驱动无头 Chrome / Edge（`scripts/cdp.py`，只用 Python 标准库），不再需要 agent-browser、Pillow、websocket-client，也不需要 npm。
 - **Node.js**：PPTX 导出需要 Node.js 18+。在 OnePaw 这类 Electron 桌面智能体里，没装 Node.js 时会自动借用应用自带的 Electron 运行时（`ELECTRON_RUN_AS_NODE`）。
 - **浏览器**：优先 Chrome，其次 Edge（Windows 10/11 自带），使用临时配置目录在后台无窗口运行，每次用完即关闭，不会碰你自己的浏览器配置。可用环境变量 `OKP_BROWSER` 指定浏览器路径。
+- **图标**：Font Awesome 图标在导出时联网下载矢量路径（与编辑器相同的来源），断网时图标显示为圆点，导出结果会给出 `iconsMissing` 警告。
 
 ## 功能特性
 

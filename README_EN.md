@@ -3,7 +3,7 @@
 [简体中文](README.md) | [English](README_EN.md)
 
 > [!NOTE]
-> This repository is a fork of [open-kimi-ppt-skill](https://github.com/WangEn/open-kimi-ppt-skill). The skill is named `onepaw-ppt` and is packaged as a zip for OnePaw: run `python tools/build_onepaw_zip.py` to get `dist/onepaw-ppt-<version>.zip`, upload it to the OnePaw skill pool and add it to an agent. No Node.js or other dependencies need to be installed.
+> This repository is a fork of [open-kimi-ppt-skill](https://github.com/WangEn/open-kimi-ppt-skill). The skill is named `onepaw-ppt` and is packaged as a zip for OnePaw: run `python tools/build_onepaw_zip.py` to get `dist/onepaw-ppt-<version>.zip`, upload it to the OnePaw skill pool and add it to an agent. No Node.js or other dependencies need to be installed. See [docs/onepaw.md](docs/onepaw.md) (Chinese) for installation, the preflight check and demo prompts; the zip is also attached to each [release](https://github.com/hezhaoqian1/onepaw-ppt/releases).
 > `open-kimi-ppt-skill` on npm is the upstream version (skill name `open-kimi-ppt`) without this fork's changes; in this repository use `node bin/open-kimi-ppt-skill.js` wherever the text below says `npx open-kimi-ppt-skill`.
 
 [![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skill)](https://www.npmjs.com/package/open-kimi-ppt-skill)
@@ -136,6 +136,7 @@ Checks Python, the Node runtime used for PPTX export, the browser used for visua
 - **Nothing extra to install**: PyYAML is bundled, and visual QA drives a headless Chrome / Edge directly over the DevTools protocol (`scripts/cdp.py`, Python standard library only), with no agent-browser, Pillow, websocket-client or npm.
 - **Node.js**: PPTX export needs Node.js 18+. Inside Electron desktop agents such as OnePaw, the app's own Electron runtime is used when Node.js is not installed (`ELECTRON_RUN_AS_NODE`).
 - **Browser**: Chrome first, then Edge (built into Windows 10/11), run headless with a temporary profile and closed after every run, so your own browser profile is never touched. Set `OKP_BROWSER` to use a specific browser.
+- **Icons**: Font Awesome icons are downloaded as vector paths at export time (from the same source the editor uses). Without internet access they appear as plain circles, and the export summary warns with `iconsMissing`.
 
 ## Features
 
