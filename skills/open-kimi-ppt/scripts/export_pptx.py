@@ -76,6 +76,67 @@ def log(message: str) -> None:
     print(f"[open-kimi-ppt] {message}", file=sys.stderr, flush=True)
 
 
+def _registry_path_entries() -> List[str]:
+    """Machine + user PATH as configured in the Windows registry."""
+    try:
+        import winreg
+    except ImportError:
+        return []
+    entries: List[str] = []
+    for root, key in (
+        (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+        (winreg.HKEY_CURRENT_USER, "Environment"),
+    ):
+        try:
+            with winreg.OpenKey(root, key) as handle:
+                value, _kind = winreg.QueryValueEx(handle, "Path")
+        except OSError:
+            continue
+        entries.extend(os.path.expandvars(value).split(os.pathsep))
+    return entries
+
+
+def augment_path() -> None:
+    """Let node / npm / agent-browser be found when the host trims PATH.
+
+    Desktop agents may run skill commands with a reduced PATH: OnePaw's shell,
+    for example, has its bundled Python but no Node even when Node is installed.
+    Known locations are appended (never prepended) so an explicit PATH still
+    wins; child processes (node, npm, agent-browser) inherit the result.
+    """
+    entries = [entry for entry in os.environ.get("PATH", "").split(os.pathsep) if entry]
+    seen = {os.path.normcase(os.path.normpath(entry)) for entry in entries}
+    candidates: List[str] = []
+    if sys.platform == "win32":
+        candidates.extend(_registry_path_entries())
+        for variable, child in (
+            ("ProgramFiles", "nodejs"),
+            ("ProgramFiles(x86)", "nodejs"),
+            ("APPDATA", "npm"),
+            ("NVM_SYMLINK", ""),
+        ):
+            base = os.environ.get(variable)
+            if base:
+                candidates.append(os.path.join(base, child) if child else base)
+    else:
+        candidates.extend(
+            ["/opt/homebrew/bin", "/usr/local/bin", str(Path.home() / ".volta" / "bin")]
+        )
+    for candidate in candidates:
+        candidate = candidate.strip().strip('"')
+        if not candidate:
+            continue
+        key = os.path.normcase(os.path.normpath(candidate))
+        if key in seen or not os.path.isdir(candidate):
+            continue
+        seen.add(key)
+        entries.append(candidate)
+    os.environ["PATH"] = os.pathsep.join(entries)
+
+
+augment_path()
+
+
 def run_command(
     command: Sequence[str],
     *,
@@ -375,6 +436,36 @@ def find_manifest(source: Path) -> Path:
             "multiple .pptd manifests found; pass one manifest explicitly:\n  " + choices
         )
     return manifests[0]
+
+
+BR_TAG = re.compile(r"<br\s*/?>", re.IGNORECASE)
+
+
+def find_dropped_line_breaks(manifest: Path) -> List[str]:
+    """Pages using <br/>, which the PPTX writer silently drops."""
+    project = manifest.parent
+    hits = []
+    for page in sorted(project.rglob("*.page")):
+        try:
+            count = len(BR_TAG.findall(page.read_text(encoding="utf-8")))
+        except OSError:
+            continue
+        if count:
+            hits.append(f"{page.relative_to(project).as_posix()} ({count})")
+    return hits
+
+
+def warn_dropped_line_breaks(manifest: Path, summary: Dict[str, Any]) -> None:
+    hits = find_dropped_line_breaks(manifest)
+    if not hits:
+        return
+    message = (
+        "<br/> line breaks are dropped by the PPTX writer, so those lines run together "
+        "in the exported file; split them into separate <p> paragraphs and re-export: "
+        + ", ".join(hits)
+    )
+    log(f"warning: {message}")
+    summary.setdefault("warnings", []).append(message)
 
 
 def read_yaml_mapping(path: Path) -> Tuple[str, Dict[str, Any]]:
@@ -1088,6 +1179,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             args.force,
             prefer_local=not args.browser,
         )
+        warn_dropped_line_breaks(manifest, summary)
     except (ExportError, OSError, subprocess.SubprocessError) as exc:
         print(f"open-kimi-ppt export failed: {exc}", file=sys.stderr)
         return 1

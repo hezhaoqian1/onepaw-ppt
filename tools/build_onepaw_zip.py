@@ -38,6 +38,10 @@ PATH_NOTE = """\
 > Use `python` on Windows and `python3` on macOS/Linux. `node scripts/serve.mjs` runs until it is
 > stopped, so start it as a background/detached process (Windows cmd: `start "" node scripts/serve.mjs --open`;
 > macOS/Linux: `nohup node scripts/serve.mjs --open >/dev/null 2>&1 &`) instead of waiting on it.
+> Desktop agents may run your shell with a trimmed PATH, so `node --version` can fail even though Node.js
+> is installed. Before reporting Node as missing in step0, look for it (Windows: `C:\\Program Files\\nodejs\\node.exe`;
+> macOS: `/opt/homebrew/bin/node`, `/usr/local/bin/node`) and prepend its folder to PATH in your commands.
+> The export scripts find Node in these places by themselves.
 """
 
 SERVE_MJS = """\

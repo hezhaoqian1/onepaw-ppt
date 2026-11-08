@@ -70,6 +70,8 @@ When any of the following situations arise, resolve them by asking the user (use
 
 Before generating, first read `reference/pptd.md` to understand the pptd format definition and constraints.
 
+> **Line breaks: never use `<br/>` in text.** The editor preview (and therefore image QA) shows the break, but the PPTX writer drops it, so the lines run together in PowerPoint/WPS. Put each line in its own `<p>` paragraph (or its own line of a `|` block scalar) instead. `export_pptx.py` warns when it finds `<br/>`.
+
 #### Replicating a PPT
 - Analyze the images to estimate element positions, fonts and sizes, etc., and **replicate 1:1 as closely as possible**.
 - For parts that are difficult to make out, use methods such as grid lines and close-up views to improve understanding.

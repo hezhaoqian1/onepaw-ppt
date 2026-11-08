@@ -22,7 +22,11 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from export_pptx import (
+# Embedded Pythons configured by a ._pth file (e.g. the one bundled with desktop
+# agents such as OnePaw) do not put the script's directory on sys.path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from export_pptx import (  # noqa: E402
     BrowserSession,
     ExportError,
     build_payload,
