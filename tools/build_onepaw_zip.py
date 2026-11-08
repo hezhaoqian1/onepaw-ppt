@@ -222,13 +222,13 @@ def adapt_skill(skill: Path) -> None:
 
 def write_zip(skill: Path, destination: Path) -> int:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    # Skip local caches (e.g. __pycache__ left behind by running the tests).
+    # Skip local caches (e.g. __pycache__ or .ruff_cache left behind by tests and linters).
     files = sorted(
         path
         for path in skill.rglob("*")
         if path.is_file()
         and path.suffix != ".pyc"
-        and not {"__pycache__", ".pytest_cache"} & set(path.relative_to(skill).parts)
+        and not {"__pycache__", ".pytest_cache", ".ruff_cache"} & set(path.relative_to(skill).parts)
     )
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in files:
