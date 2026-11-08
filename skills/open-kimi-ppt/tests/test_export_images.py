@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import importlib.util
+import os
 import sys
 import tempfile
 import unittest
@@ -69,31 +70,50 @@ class ExportImagesTests(unittest.TestCase):
                 [path.name for path in images], ["1.jpeg", "2.jpeg", "10.jpeg"]
             )
 
-    def test_stitch_overview_grid(self):
-        try:
-            image_cls, draw_cls, image_font = MODULE.ensure_pillow()
-        except MODULE.ExportError:
-            self.skipTest("Pillow is not available")
+    def test_overview_html_labels_pages_in_order(self):
         with tempfile.TemporaryDirectory() as name:
             root = Path(name)
+            images = [root / "pages" / f"{index}.jpeg" for index in (1, 2, 10)]
+            document = MODULE.overview_html(images, root)
+            self.assertLess(document.index("P1<"), document.index("P2<"))
+            self.assertLess(document.index("P2<"), document.index("P3<"))
+            self.assertIn('src="pages/10.jpeg"', document)
+            self.assertIn(f"repeat({MODULE.OVERVIEW_COLUMNS},{MODULE.OVERVIEW_THUMB_WIDTH}px)", document)
+
+    @unittest.skipUnless(os.environ.get("OKP_E2E"), "set OKP_E2E=1 to drive a real browser")
+    def test_stitch_overview_with_headless_browser(self):
+        import cdp
+
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            pages = root / "pages"
+            pages.mkdir()
             images = []
+            # 16:9 SVG pages keep the test free of image libraries.
             for index in range(1, 5):
-                path = root / f"{index}.jpeg"
-                image = image_cls.new("RGB", (320, 180), (index * 40 % 255, 30, 60))
-                image.save(path, "JPEG")
-                images.append(path)
-            overview = MODULE.stitch_overview(
-                images, root / "overview.jpg", image_cls, draw_cls, image_font
-            )
-            self.assertTrue(overview.is_file())
-            with image_cls.open(overview) as result:
-                self.assertEqual(
-                    result.width,
-                    3 * MODULE.OVERVIEW_THUMB_WIDTH + 4 * MODULE.OVERVIEW_GAP,
+                path = pages / f"{index}.svg"
+                path.write_text(
+                    "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'>"
+                    f"<rect width='320' height='180' fill='#{index * 2}0{index}0a0'/></svg>",
+                    encoding="utf-8",
                 )
-                rows = 2
-                cell = MODULE.OVERVIEW_LABEL_HEIGHT + 360
-                self.assertEqual(result.height, rows * cell + (rows + 1) * MODULE.OVERVIEW_GAP)
+                images.append(path)
+            browser = cdp.launch_browser()
+            try:
+                overview = MODULE.stitch_overview(browser, images, root / "overview.jpg")
+            finally:
+                browser.close()
+            data = overview.read_bytes()
+            self.assertEqual(data[:2], b"\xff\xd8")  # JPEG
+            # JPEG SOF0 marker carries height/width.
+            index = data.index(b"\xff\xc0")
+            height = int.from_bytes(data[index + 5:index + 7], "big")
+            width = int.from_bytes(data[index + 7:index + 9], "big")
+            self.assertEqual(width, 3 * MODULE.OVERVIEW_THUMB_WIDTH + 4 * MODULE.OVERVIEW_GAP)
+            rows = 2
+            cell = MODULE.OVERVIEW_LABEL_HEIGHT + 360
+            self.assertEqual(height, rows * cell + (rows + 1) * MODULE.OVERVIEW_GAP)
+            self.assertFalse(any(root.glob(".*.html")))
 
 
 if __name__ == "__main__":

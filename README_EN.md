@@ -5,7 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skill)](https://www.npmjs.com/package/open-kimi-ppt-skill)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
-An unofficial presentation skill for AI coding agents, reverse-engineered from Kimi Slides. It lets your agent create, edit, replicate, read, and export PPT/PPTX files. Each run produces two outputs by default: an editable PPTD project, and a PPTX with embedded fonts and fade page transitions. On-slide element animations and [preset themes](theme_EN.md) are supported, and a local in-browser PPTD editor is included for manual export. Works with Codex, Claude Code, Cursor, WorkBuddy, and any agent that supports the SKILL.md format.
+An unofficial presentation skill for AI coding agents, reverse-engineered from Kimi Slides. It lets your agent create, edit, replicate, read, and export PPT/PPTX files. Each run produces two outputs by default: an editable PPTD project, and a PPTX that uses system fonts (it looks the same in PowerPoint and WPS) with fade page transitions. On-slide element animations and [preset themes](theme_EN.md) are supported, and a local in-browser PPTD editor is included for manual export. Works with Codex, Claude Code, Cursor, WorkBuddy, and any agent that supports the SKILL.md format.
 
 > [!IMPORTANT]
 > This project is implemented by reverse-engineering the Kimi Slides skill, the PPTD format, and the frontend behavior and communication protocol of the publicly accessible web editor. It is not an official Kimi or Moonshot AI project and is not endorsed or supported by them. Public frontend resources and compatibility contracts used by this project may change without notice. Provided for learning and research purposes only.
@@ -121,25 +121,24 @@ npx open-kimi-ppt-skill serve --port 56000
 
 Writable folder access requires a Chromium-based browser with the File System Access API. Other browsers fall back to read-only folder upload. Press `Ctrl+C` to stop the server.
 
-### Windows: a persistent debug browser
+### Environment check and the visual-QA browser
 
-Only needed for **visual QA** (`export_images.py`) or the **`--browser` PPTX fallback**. Default local WASM export does not start a browser.
+```bash
+python3 ~/.agents/skills/open-kimi-ppt/scripts/doctor.py
+```
 
-On Windows, the browser path automatically starts a **persistent debug browser**. This is by design, not a stray process:
+Checks Python, the Node runtime used for PPTX export, the browser used for visual QA, and the skill files in a few seconds, exports a tiny test deck, and prints a verdict. It installs and changes nothing.
 
-- **Why it's needed**: agent-browser cannot launch Chrome by itself on Windows (the Chrome launcher hands off to a child process and exits immediately, which is misread as a crash), so the export drives an externally started browser instead.
-- **What it is**: your installed Chrome (falling back to Edge), launched with `--remote-debugging-port` (default `9337`) and a dedicated profile at `%TEMP%\okp-cdp-profile`, with the window positioned off-screen so it stays out of the way.
-- **Why it persists**: the instance intentionally keeps running after the export. Relaunching with the same profile joins the existing browser, so repeated exports reuse one instance instead of piling up processes — the design goal is "at most one, reused forever". To get rid of it, just kill the browser process; the next export starts a fresh one.
-- **Take full control**: start your own browser with `--remote-debugging-port=<port>` and set the `AGENT_BROWSER_CDP` environment variable to that port; the script prefers your instance.
-
-macOS and Linux are unaffected.
+- **Nothing extra to install**: PyYAML is bundled, and visual QA drives a headless Chrome / Edge directly over the DevTools protocol (`scripts/cdp.py`, Python standard library only), with no agent-browser, Pillow, websocket-client or npm.
+- **Node.js**: PPTX export needs Node.js 18+. Inside Electron desktop agents such as OnePaw, the app's own Electron runtime is used when Node.js is not installed (`ELECTRON_RUN_AS_NODE`).
+- **Browser**: Chrome first, then Edge (built into Windows 10/11), run headless with a temporary profile and closed after every run, so your own browser profile is never touched. Set `OKP_BROWSER` to use a specific browser.
 
 ## Features
 
 - PPTD generation: let your agent generate complete, editable PPTD projects, from scratch, with style transfer, template reuse, or replication from images/PDFs.
 - Preset themes: ~30 official-style design systems you can name to apply; full list with previews in [theme_EN.md](theme_EN.md).
 - Element animations: off by default. Add `Require element entrance animations` to the prompt and the agent picks suitable on-slide effects per page.
-- PPTX generation: a matching PPTX is produced by default, with fonts embedded and fade page transitions written automatically (separate from on-slide element animations).
+- PPTX generation: a matching PPTX is produced by default, with fade page transitions written automatically (separate from on-slide element animations). Editor-only web fonts (MiSans, Liter, Source Han Serif, ...) are replaced by the closest system fonts (Microsoft YaHei, Arial, SimSun, ...) and `<br/>` becomes a real line break, so the deck looks the same in PowerPoint and WPS on any computer; visual QA renders the same fonts.
 - Visual QA: with a multimodal model, the skill exports every page as an image, stitches them into an overview sheet, and checks each page (distortion, occlusion, out-of-bounds elements, contrast, layout consistency, text overflow) before PPTX export, fixing and re-checking until every page passes.
 - Online editing: view and edit local PPTD projects in a browser, with autosave and configurable slide transitions.
 - Manual export: export PPTX manually from the editor at any time.
@@ -162,7 +161,7 @@ Most PPT skills fall into three buckets: assemble OOXML / pptxgenjs in code, ren
 Specifically:
 
 - PPTD describes theme, layout, and elements in YAML, which is more stable than raw OOXML / pptxgenjs and easier to edit locally than full-slide images.
-- You get both deliverables by default: an iterable PPTD project plus a ready-to-open PPTX with embedded fonts and fade page transitions.
+- You get both deliverables by default: an iterable PPTD project plus a ready-to-open PPTX with system fonts and fade page transitions.
 - Add `Require element entrance animations` to the prompt and the agent chooses effects and timing for you.
 - Text boxes and shapes in the exported PPTX remain editable in PowerPoint / WPS, unlike image-only decks.
 - You can preview, tweak, set transitions, and re-export in the browser without rerunning the whole agent flow.

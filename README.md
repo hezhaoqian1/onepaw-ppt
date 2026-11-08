@@ -5,7 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/open-kimi-ppt-skill)](https://www.npmjs.com/package/open-kimi-ppt-skill)
 [![node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
-逆向 Kimi Slides 实现的非官方演示文稿 Skill，让 AI Coding Agent 可以创建、编辑、复刻、读取并导出 PPT/PPTX。每次生成默认产出两份文件：可继续编辑的 PPTD 项目，以及嵌入字体、带淡入淡出翻页切换的 PPTX。支持页内元素动画和[预设主题](theme.md)，附带本地浏览器编辑器，可随时手动导出 PPTX。支持 Codex、Claude Code、Cursor、WorkBuddy 等任何兼容 SKILL.md 规范的 Agent。
+逆向 Kimi Slides 实现的非官方演示文稿 Skill，让 AI Coding Agent 可以创建、编辑、复刻、读取并导出 PPT/PPTX。每次生成默认产出两份文件：可继续编辑的 PPTD 项目，以及使用系统字体（PowerPoint / WPS 打开效果一致）、带淡入淡出翻页切换的 PPTX。支持页内元素动画和[预设主题](theme.md)，附带本地浏览器编辑器，可随时手动导出 PPTX。支持 Codex、Claude Code、Cursor、WorkBuddy 等任何兼容 SKILL.md 规范的 Agent。
 
 > [!IMPORTANT]
 > 本项目通过逆向分析 Kimi Slides Skill、PPTD 格式以及公开网页编辑器的前端行为与通信协议实现，并非 Kimi 或 Moonshot AI 的官方项目，也未获得其认可或支持。项目依赖的公开前端资源和兼容协议可能随 Kimi 更新而失效，仅供学习与研究使用。
@@ -133,25 +133,24 @@ npx open-kimi-ppt-skill serve --port 56000
 
 可写目录需要使用支持 File System Access API 的 Chromium 系浏览器；其他浏览器会回退为只读文件夹上传。按 `Ctrl+C` 停止服务。
 
-### Windows：常驻调试浏览器说明
+### 环境自检与视觉质检用的浏览器
 
-仅在使用 **视觉质检**（`export_images.py`）或 **`--browser` PPTX**（本地编辑器 UI）时需要。默认 Node WASM 导出不启动浏览器。
+```bash
+python3 ~/.agents/skills/open-kimi-ppt/scripts/doctor.py
+```
 
-在 Windows 上走浏览器路径时，脚本会自动启动一个**常驻的调试浏览器**。这是有意设计，不是异常进程：
+几秒内检查 Python、PPTX 导出用的 Node 运行时、视觉质检用的浏览器和技能文件，并实际导出一份小样，给出能否使用的结论。不会安装或修改任何东西。
 
-- **为什么需要**：agent-browser 在 Windows 下无法自行启动 Chrome（Chrome 启动器把进程交接给子进程后立即退出，被误判为崩溃），导出只能改为驱动一个外部启动的浏览器。
-- **它是什么**：优先使用本机 Chrome，未安装时回退到 Edge；以 `--remote-debugging-port`（默认 `9337`）和独立配置目录 `%TEMP%\okp-cdp-profile` 启动，窗口定位在屏幕外，不影响日常使用。
-- **为什么常驻**：导出完成后实例保持运行，下次导出会复用同一个实例，而不是每导一次就多一个浏览器进程——设计目标是「最多一个，反复复用」。若想关掉，直接结束该浏览器进程即可，下次导出会自动重新拉起。
-- **想完全自控**：自行以 `--remote-debugging-port=<端口>` 启动浏览器，并把环境变量 `AGENT_BROWSER_CDP` 设为该端口，脚本会优先使用你自己的实例。
-
-macOS / Linux 无此行为，不受影响。
+- **不需要额外安装**：PyYAML 已随技能打包；视觉质检直接通过 DevTools 协议驱动无头 Chrome / Edge（`scripts/cdp.py`，只用 Python 标准库），不再需要 agent-browser、Pillow、websocket-client，也不需要 npm。
+- **Node.js**：PPTX 导出需要 Node.js 18+。在 OnePaw 这类 Electron 桌面智能体里，没装 Node.js 时会自动借用应用自带的 Electron 运行时（`ELECTRON_RUN_AS_NODE`）。
+- **浏览器**：优先 Chrome，其次 Edge（Windows 10/11 自带），使用临时配置目录在后台无窗口运行，每次用完即关闭，不会碰你自己的浏览器配置。可用环境变量 `OKP_BROWSER` 指定浏览器路径。
 
 ## 功能特性
 
 - PPTD 生成：让 Agent 生成完整、可继续编辑的 PPTD 项目，支持从零创作、风格迁移、模板复用、图片/PDF 复刻。
 - 预设主题：内置约 30 套官方同款 design system，点名即可套用；完整列表与预览图见 [theme.md](theme.md)。
 - 元素动画：默认不加。提示词加上「要求带元素入场动画」即可，由 AI 按页编排合适的入场效果。
-- PPTX 生成：默认同步生成 PPTX，自动嵌入字体并写入淡入淡出翻页切换（与页内元素动画是两回事）。
+- PPTX 生成：默认同步生成 PPTX，写入淡入淡出翻页切换（与页内元素动画是两回事）。编辑器专用的网络字体（MiSans、Liter、思源宋体等）会自动换成最接近的系统字体（微软雅黑、Arial、宋体等），`<br/>` 换行转成真正的换行，换台电脑用 PowerPoint 或 WPS 打开效果一致；视觉质检也按同样的字体渲染。
 - 视觉质检：多模态模型在导出 PPTX 前自动导出整份页面图片、拼接总览图逐项核查（变形、遮挡、出界、对比度、排版、文字溢出），问题页面修复后复检，直至全部通过。
 - 在线编辑：通过浏览器查看和编辑本地 PPTD 项目，自动保存，可配置页面切换动画。
 - 手动导出：在编辑器中随时手动导出 PPTX。

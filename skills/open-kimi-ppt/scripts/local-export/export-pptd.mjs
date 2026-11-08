@@ -31,8 +31,40 @@ import { createRequire } from 'node:module';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 
-// ---------- minimal YAML (enough for PPTD) via dynamic import of yaml if present ----------
+// ---------- YAML ----------
+// Prefer the js-yaml build that ships inside the editor mirror: it is the parser
+// the editor (and therefore image QA) uses, so the PPTX sees exactly the same
+// values as the preview. PyYAML would differ, e.g. it turns `text: Yes` or
+// `text: on` into booleans. It also means no Python/PyYAML dependency here.
+const EDITOR_YAML_CHUNK = 'yaml-Jsje7sNc.js';
+
+function editorAssetDirs() {
+  const dirs = [];
+  if (process.env.OPEN_KIMI_PPT_EDITOR) {
+    dirs.push(path.join(process.env.OPEN_KIMI_PPT_EDITOR, 'neo-ppt', 'assets'));
+  }
+  dirs.push(path.join(__dirname, '..', '..', 'editor', 'neo-ppt', 'assets')); // installed skill
+  dirs.push(path.join(__dirname, '..', '..', '..', '..', 'editor', 'neo-ppt', 'assets')); // repo / npm
+  return dirs;
+}
+
+async function loadEditorYaml() {
+  for (const dir of editorAssetDirs()) {
+    const file = path.join(dir, EDITOR_YAML_CHUNK);
+    if (!fs.existsSync(file)) continue;
+    try {
+      const mod = await import(pathToFileURL(file).href);
+      if (typeof mod.t === 'function') return mod.t;
+    } catch (error) {
+      console.warn(`[warn] editor YAML parser unavailable (${error.message}); falling back`);
+    }
+  }
+  return null;
+}
+
 async function loadYaml() {
+  const editorYaml = await loadEditorYaml();
+  if (editorYaml) return editorYaml;
   try {
     const yaml = await import('yaml');
     return yaml.parse;
@@ -47,9 +79,16 @@ async function loadYaml() {
       return (text) => {
         const { spawnSync } = require('node:child_process');
         const python = process.env.OKP_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+        // scripts/_vendor holds a pure-Python PyYAML for interpreters without one.
+        const vendor = path.join(__dirname, '..', '_vendor');
         const r = spawnSync(
           python,
-          ['-c', 'import sys,yaml,json; print(json.dumps(yaml.safe_load(sys.stdin.read()), ensure_ascii=False))'],
+          [
+            '-c',
+            'import sys,json; sys.path.append(sys.argv[1]); import yaml; ' +
+              'print(json.dumps(yaml.safe_load(sys.stdin.read()), ensure_ascii=False))',
+            vendor,
+          ],
           {
             input: text,
             encoding: 'utf8',
@@ -154,6 +193,28 @@ async function loadProject(manifestPath, parseYaml) {
     pages,
     pptdFileName: path.basename(manifestPath),
   };
+}
+
+// The editor renders <br/> but the PPTX writer silently drops it, so lines ran
+// together in the exported file. A newline inside the text is kept, so convert
+// every <br/> to "\n" before the pages reach the writer (export_pptx.py later
+// turns those newlines into proper <a:br/> elements).
+const BR_TAG = /<br\s*\/?>/gi;
+
+function convertLineBreaks(value, counter) {
+  if (typeof value === 'string') {
+    return value.replace(BR_TAG, () => {
+      counter.count += 1;
+      return '\n';
+    });
+  }
+  if (Array.isArray(value)) return value.map((item) => convertLineBreaks(item, counter));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [key, item] of Object.entries(value)) out[key] = convertLineBreaks(item, counter);
+    return out;
+  }
+  return value;
 }
 
 function normalizeElement(el) {
@@ -621,6 +682,9 @@ Env: KIMI_COOKIE, KIMI_ORIGIN`);
 
   console.log('[1/5] load PPTD', manifestPath);
   let pptd = await loadProject(manifestPath, parseYaml);
+  const breaks = { count: 0 };
+  pptd = { ...pptd, pages: convertLineBreaks(pptd.pages, breaks) };
+  if (breaks.count) console.log(`      converted ${breaks.count} <br/> line break(s)`);
 
   console.log('[2/5] resolve images');
   // deep clone so we can rewrite src

@@ -1,5 +1,37 @@
 # Font system
 
+## Default: system fonts (works on every computer)
+
+The exported PPTX does **not** embed fonts, so it is shown with whatever fonts the
+audience's computer has. Build every deck with fonts that ship with Windows and
+Microsoft Office / WPS, so it looks the same in PowerPoint, WPS and the QA images:
+
+| Use | Font name (write exactly) | Notes |
+|---|---|---|
+| Chinese body and titles (default) | `Microsoft YaHei` | 微软雅黑; has a real bold. The safe default for any Chinese deck |
+| Chinese, lighter / modern | `DengXian` | 等线; ships with Office 2016+ and Windows 10+ |
+| Chinese headline, heavy | `SimHei` | 黑体; no real bold, use larger sizes instead of `bold` |
+| Chinese serif / formal | `SimSun` | 宋体; body text in formal or literary decks |
+| Chinese calligraphic accent | `KaiTi` | 楷体; quotes, signatures, cultural themes (sparingly) |
+| Latin sans (default) | `Arial` | Universal; pairs well with Microsoft YaHei |
+| Latin sans, modern | `Segoe UI` | Windows only (PowerPoint for Mac substitutes it) |
+| Latin serif | `Georgia`, `Times New Roman` | |
+| Latin display / numbers | `Impact`, `Arial Black`, `Bahnschrift` | Big numbers, covers |
+| Monospace | `Consolas`, `Courier New` | Code, data |
+
+Recommended pairings: `{latin: "Arial", ea: "Microsoft YaHei"}` (business/tech default),
+`{latin: "Segoe UI", ea: "Microsoft YaHei"}` (modern), `{latin: "Georgia", ea: "SimSun"}`
+(formal/editorial). Create the style hierarchy with size, weight, colour, letter spacing and
+all-caps rather than with unusual typefaces.
+
+`export_pptx.py` replaces the editor web fonts listed below with the closest system font
+(e.g. MiSans → Microsoft YaHei, Liter → Arial, 思源宋体 → SimSun, calligraphy fonts → KaiTi)
+in the PPTX, and `export_images.py` renders the QA images with the same substitutes, so the
+layout you review is the layout the audience sees. Its JSON summary lists them under
+`fontsReplaced`, and warns about any other font that is not standard on Windows/Office.
+Keep the web fonts (`--keep-fonts` on both scripts) only when the user explicitly wants them
+and accepts that the PPTX looks right only where those fonts are installed.
+
 ## Selection principles
 
 1. Language matching: when the user's query is in Chinese or a Chinese PPT deliverable is requested, both Chinese and English fonts need to be specified; otherwise, only English fonts need to be set
@@ -7,7 +39,10 @@
 3. The font combination must support the overall visual style positioning
 4. Name consistency: **make sure font names are exactly identical, including capitalization and spaces, so that the model can use them correctly**
 
-## Font list
+## Editor web fonts (replaced by system fonts on export unless `--keep-fonts`)
+
+These fonts exist only inside the editor (loaded from the network for the preview).
+Other computers do not have them, which is why the exporter substitutes them.
 
 ### English fonts
 
@@ -51,3 +86,7 @@
 Use custom fonts to strengthen expressiveness or to fill font categories the built-in list does not cover (e.g. JetBrains Mono for monospace, Archivo Black for ultra-heavy sans-serif, EB Garamond for classical serif), brought in from Google Fonts via `customFonts`: declare `customFonts` in the `.pptd` entry file (see CustomFont in [pptd.md](./pptd.md)); the `family` name must match Google Fonts exactly, and once declared it can be referenced in `fontFamily`.
 
 Note: custom fonts follow the same "exactly identical names" requirement
+
+Custom fonts are not embedded in the PPTX either, and the exporter cannot know a good substitute,
+so it only warns about them (`nonStandardFonts`). Avoid them unless the user explicitly asks for a
+specific font and accepts that other computers will substitute it.

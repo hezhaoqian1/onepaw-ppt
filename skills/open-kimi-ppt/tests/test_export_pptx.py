@@ -17,54 +17,70 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ExportPptxTests(unittest.TestCase):
-    def test_parse_agent_browser_version(self):
-        self.assertEqual(MODULE.parse_version("agent-browser 0.33.2"), (0, 33, 2))
-        self.assertEqual(MODULE.parse_version("v1.4.0-beta.1"), (1, 4, 0))
+    def setUp(self):
+        MODULE._NODE = None  # node_runtime() caches its result
 
+    @patch.object(MODULE, "find_electron", return_value=None)
     @patch.object(MODULE, "run_command")
-    @patch.object(MODULE.shutil, "which")
-    def test_old_agent_browser_is_upgraded(self, which, run_command):
-        which.side_effect = [
-            "/bin/node",
-            "/bin/npm",
-            "/bin/agent-browser",
-            "/bin/npm",
-            "/bin/agent-browser",
-        ]
-        run_command.side_effect = [
-            MODULE.subprocess.CompletedProcess([], 0, "v22.11.0\n"),
-            MODULE.subprocess.CompletedProcess([], 0, "agent-browser 0.17.1\n"),
-            MODULE.subprocess.CompletedProcess([], 0, "changed 1 package\n"),
-            MODULE.subprocess.CompletedProcess([], 0, "agent-browser 0.33.2\n"),
-        ]
-        self.assertEqual(MODULE.ensure_agent_browser(), "/bin/agent-browser")
-        self.assertEqual(run_command.call_args_list[2].args[0], [
-            "/bin/npm", "install", "-g", "agent-browser@latest"
-        ])
-
-    @patch.object(MODULE, "run_command")
-    @patch.object(MODULE.shutil, "which")
-    def test_missing_nodejs_raises_clear_error(self, which, run_command):
-        which.return_value = None
-        with self.assertRaisesRegex(MODULE.ExportError, "Node.js is not installed"):
+    @patch.object(MODULE.shutil, "which", return_value=None)
+    def test_missing_nodejs_raises_clear_error(self, which, run_command, find_electron):
+        with self.assertRaisesRegex(MODULE.ExportError, "Node.js 18\\+ was not found"):
             MODULE.ensure_nodejs()
         run_command.assert_not_called()
 
+    @patch.object(MODULE, "find_electron", return_value=None)
     @patch.object(MODULE, "run_command")
-    @patch.object(MODULE.shutil, "which")
-    def test_old_nodejs_raises_clear_error(self, which, run_command):
-        which.return_value = "/bin/node"
+    @patch.object(MODULE.shutil, "which", return_value="/bin/node")
+    def test_old_nodejs_raises_clear_error(self, which, run_command, find_electron):
         run_command.return_value = MODULE.subprocess.CompletedProcess([], 0, "v16.20.2\n")
-        with self.assertRaisesRegex(MODULE.ExportError, "Node.js 18\\+ is required"):
+        with self.assertRaisesRegex(MODULE.ExportError, "16.20.2 at /bin/node is older than 18"):
             MODULE.ensure_nodejs()
 
     @patch.object(MODULE, "run_command")
-    @patch.object(MODULE.shutil, "which")
-    def test_missing_npm_raises_clear_error(self, which, run_command):
-        which.side_effect = ["/bin/node", None]
+    @patch.object(MODULE.shutil, "which", return_value="/bin/node")
+    def test_installed_node_is_preferred(self, which, run_command):
         run_command.return_value = MODULE.subprocess.CompletedProcess([], 0, "v22.11.0\n")
-        with self.assertRaisesRegex(MODULE.ExportError, "npm is not installed"):
-            MODULE.ensure_nodejs()
+        command, env, label = MODULE.node_runtime()
+        self.assertEqual((command, env), (["/bin/node"], {}))
+        self.assertIn("22.11.0", label)
+
+    @patch.object(MODULE, "run_command")
+    @patch.object(MODULE.shutil, "which", return_value=None)
+    def test_electron_runtime_stands_in_for_missing_node(self, which, run_command):
+        electron = Path("/apps/OnePaw/OnePaw.exe")
+        run_command.return_value = MODULE.subprocess.CompletedProcess([], 0, "18.18.2")
+        with patch.object(MODULE, "find_electron", return_value=electron):
+            command, env, label = MODULE.node_runtime()
+        self.assertEqual(command, [str(electron)])
+        self.assertEqual(env, {"ELECTRON_RUN_AS_NODE": "1"})
+        self.assertEqual(run_command.call_args.kwargs["env"]["ELECTRON_RUN_AS_NODE"], "1")
+        self.assertIn("18.18.2", label)
+
+    def test_find_electron_locates_app_around_bundled_python(self):
+        with tempfile.TemporaryDirectory() as name:
+            app = Path(name) / "OnePaw 智能助手"
+            python = app / "resources" / "portable_py311" / "python.exe"
+            python.parent.mkdir(parents=True)
+            python.write_bytes(b"py")
+            (app / "LICENSE.electron.txt").write_text("MIT")
+            (app / "OnePaw.exe").write_bytes(b"x" * 4096)
+            (app / "Uninstall OnePaw.exe").write_bytes(b"x" * 8192)
+            (app / "elevate.exe").write_bytes(b"x" * 8192)
+            with patch.object(MODULE.sys, "platform", "win32"), \
+                    patch.object(MODULE.sys, "executable", str(python)), \
+                    patch.dict(MODULE.os.environ, {}, clear=False):
+                MODULE.os.environ.pop("OKP_ELECTRON", None)
+                self.assertEqual(MODULE.find_electron(), (app / "OnePaw.exe").resolve())
+
+    def test_find_electron_ignores_plain_python_installs(self):
+        with tempfile.TemporaryDirectory() as name:
+            python = Path(name) / "Python311" / "python.exe"
+            python.parent.mkdir(parents=True)
+            python.write_bytes(b"py")
+            with patch.object(MODULE.sys, "executable", str(python)), \
+                    patch.dict(MODULE.os.environ, {}, clear=False):
+                MODULE.os.environ.pop("OKP_ELECTRON", None)
+                self.assertIsNone(MODULE.find_electron())
 
     def test_parse_node_version(self):
         self.assertEqual(MODULE.parse_node_version("v22.11.0"), (22, 11, 0))
@@ -133,13 +149,13 @@ class ExportPptxTests(unittest.TestCase):
     @patch.object(MODULE.subprocess, "call", return_value=0)
     def test_run_command_captures_utf8_via_temp_file(self, call):
         def write_sink(*_args, **kwargs):
-            kwargs["stdout"].write("agent-browser 0.33.2\n")
+            kwargs["stdout"].write("v22.11.0 · 中文\n")
             return 0
 
         call.side_effect = write_sink
-        process = MODULE.run_command(["agent-browser", "--version"], timeout=5)
+        process = MODULE.run_command(["node", "--version"], timeout=5)
         self.assertEqual(process.returncode, 0)
-        self.assertIn("0.33.2", process.stdout)
+        self.assertIn("22.11.0", process.stdout)
         self.assertEqual(call.call_args.kwargs["stderr"], MODULE.subprocess.STDOUT)
 
     def test_find_download_ignores_files_older_than_since(self):
@@ -194,42 +210,174 @@ class ExportPptxTests(unittest.TestCase):
                 found = MODULE.find_download([root], timeout=2.0)
             self.assertEqual(found.resolve(), deck.resolve())
 
-    def test_browser_open_does_not_pass_download_path(self):
-        session = MODULE.BrowserSession(
-            "/bin/agent-browser",
-            "test-session",
-            Path("."),
-            Path("/tmp/downloads"),
+    def test_editor_fonts_are_mapped_to_system_fonts(self):
+        replaced = {}
+        xml = (
+            '<a:rPr><a:latin typeface="Liter" pitchFamily="34"/><a:ea typeface="MiSans"/>'
+            '<a:cs typeface="Segoe UI"/></a:rPr><p:font typeface="MiSans"/>'
         )
-        with patch.object(session, "run") as run:
-            session.open("http://127.0.0.1:9/?ndExport=1")
-        run.assert_called_once_with(
-            ["open", "http://127.0.0.1:9/?ndExport=1"],
-            timeout=90,
+        result = MODULE.map_fonts_in_xml(xml, replaced)
+        self.assertIn('<a:latin typeface="Arial" pitchFamily="34"/>', result)
+        self.assertIn('<a:ea typeface="Microsoft YaHei"/>', result)
+        self.assertIn('<a:cs typeface="Segoe UI"/>', result)
+        # Embedded-font declarations are not text runs and stay untouched.
+        self.assertIn('<p:font typeface="MiSans"/>', result)
+        self.assertEqual(replaced, {"Liter": "Arial", "MiSans": "Microsoft YaHei"})
+
+    def test_every_fallback_has_preview_faces(self):
+        for target in MODULE.FONT_FALLBACKS.values():
+            self.assertIn(target, MODULE.FONT_FACES)
+            self.assertIn(target.lower(), MODULE.STANDARD_FONTS)
+        css = MODULE.font_alias_css()
+        self.assertIn('@font-face{font-family:"MiSans";src:local("Microsoft YaHei")', css)
+        self.assertIn('font-family:"MiSans";font-weight:700;src:local("Microsoft YaHei Bold")', css)
+        script = MODULE.font_alias_script()
+        self.assertIn('"misans"', script)
+        self.assertNotIn("__CSS__", script)
+
+    def test_newlines_in_runs_become_line_breaks(self):
+        xml = (
+            '<a:p><a:r><a:rPr lang="zh-CN" sz="1200"><a:solidFill/></a:rPr>'
+            "<a:t>线索\n跟进</a:t></a:r><a:r><a:rPr/><a:t>a&#10;b</a:t></a:r>"
+            "<a:r><a:t>plain</a:t></a:r></a:p>"
+        )
+        result, count = MODULE.split_newline_runs(xml)
+        self.assertEqual(count, 2)
+        self.assertIn(
+            '<a:r><a:rPr lang="zh-CN" sz="1200"><a:solidFill/></a:rPr><a:t>线索</a:t></a:r>'
+            '<a:br><a:rPr lang="zh-CN" sz="1200"><a:solidFill/></a:rPr></a:br>'
+            '<a:r><a:rPr lang="zh-CN" sz="1200"><a:solidFill/></a:rPr><a:t>跟进</a:t></a:r>',
+            result,
+        )
+        self.assertIn("<a:r><a:rPr/><a:t>a</a:t></a:r><a:br><a:rPr/></a:br>", result)
+        self.assertIn("<a:r><a:t>plain</a:t></a:r>", result)
+        self.assertNotIn("\n", result)
+
+    def test_postprocess_rewrites_deck_for_office(self):
+        with tempfile.TemporaryDirectory() as name:
+            deck = Path(name) / "deck.pptx"
+            slide = (
+                '<p:sld xmlns:p="urn:p" xmlns:a="urn:a"><p:cSld><p:txBody><a:p><a:r>'
+                '<a:rPr><a:latin typeface="Liter"/><a:ea typeface="HarmonyOS Sans SC"/></a:rPr>'
+                "<a:t>一\n二</a:t></a:r></a:p></p:txBody></p:cSld></p:sld>"
+            )
+            with zipfile.ZipFile(deck, "w") as archive:
+                archive.writestr("ppt/slides/slide1.xml", slide)
+                archive.writestr(
+                    "ppt/theme/theme1.xml",
+                    '<a:theme xmlns:a="urn:a"><a:minorFont><a:latin typeface="MiSans"/>'
+                    "</a:minorFont></a:theme>",
+                )
+            result = MODULE.postprocess_pptx(deck, "fade")
+            self.assertEqual(result["slides"], 1)
+            self.assertEqual(result["lineBreaks"], 1)
+            self.assertEqual(result["fontsReplaced"], {"Liter": "Arial", "MiSans": "Microsoft YaHei"})
+            self.assertEqual(result["nonStandardFonts"], ["HarmonyOS Sans SC"])
+            with zipfile.ZipFile(deck) as archive:
+                self.assertIsNone(archive.testzip())
+                slide_out = archive.read("ppt/slides/slide1.xml").decode("utf-8")
+                theme_out = archive.read("ppt/theme/theme1.xml").decode("utf-8")
+            self.assertIn('typeface="Arial"', slide_out)
+            self.assertIn("<a:br>", slide_out)
+            self.assertIn("<p:fade/>", slide_out)
+            self.assertIn('typeface="Microsoft YaHei"', theme_out)
+
+            kept = MODULE.postprocess_pptx(deck, "fade", map_fonts=False)
+            self.assertEqual(kept["fontsReplaced"], {})
+
+    def test_line_break_warning_only_for_browser_exporter(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            manifest = root / "deck.pptd"
+            manifest.write_text("version: v2\n", encoding="utf-8")
+            (root / "pages").mkdir()
+            (root / "pages" / "1.page").write_text("text: a<br/>b\n", encoding="utf-8")
+            local = {"exporter": "local-wasm-patched"}
+            MODULE.warn_dropped_line_breaks(manifest, local)
+            self.assertNotIn("warnings", local)
+            browser = {"exporter": "browser-local-editor"}
+            MODULE.warn_dropped_line_breaks(manifest, browser)
+            self.assertIn("pages/1.page (1)", browser["warnings"][0])
+
+    def test_vendored_yaml_is_used_when_pyyaml_is_missing(self):
+        vendor = SCRIPT.parent / "_vendor"
+        self.assertTrue((vendor / "yaml" / "__init__.py").is_file())
+        is_yaml = lambda key: key == "yaml" or key.startswith("yaml.")  # noqa: E731
+        saved = {key: value for key, value in MODULE.sys.modules.items() if is_yaml(key)}
+        # Hide every installed PyYAML: no site-packages, no cached module.
+        bare_path = [entry for entry in MODULE.sys.path if "site-packages" not in entry]
+        try:
+            for key in saved:
+                del MODULE.sys.modules[key]
+            with patch.object(MODULE.sys, "path", bare_path):
+                module = MODULE.load_yaml_module()
+            self.assertEqual(module.safe_load("pages: [a.page]"), {"pages": ["a.page"]})
+            self.assertTrue(str(Path(module.__file__).resolve()).startswith(str(vendor)))
+        finally:
+            for key in [key for key in MODULE.sys.modules if is_yaml(key)]:
+                del MODULE.sys.modules[key]
+            MODULE.sys.modules.update(saved)
+
+    def test_piped_output_is_utf8(self):
+        import io
+
+        stream = io.TextIOWrapper(io.BytesIO(), encoding="gbk")
+        with patch.object(MODULE.sys, "stdout", stream), patch.object(MODULE.sys, "stderr", stream):
+            MODULE.make_output_robust()
+            print("✓ 完成 🎉")
+        stream.flush()
+        self.assertIn("✓ 完成 🎉".encode("utf-8"), stream.buffer.getvalue())
+
+
+class CdpTests(unittest.TestCase):
+    def setUp(self):
+        import cdp
+
+        self.cdp = cdp
+
+    def test_mask_is_an_involution(self):
+        key = b"\x01\x02\x03\x04"
+        data = "导出 PPTX".encode("utf-8") * 50
+        masked = self.cdp._mask(data, key)
+        self.assertNotEqual(masked, data)
+        self.assertEqual(self.cdp._mask(masked, key), data)
+        self.assertEqual(self.cdp._mask(b"", key), b"")
+
+    def test_websocket_reads_fragmented_and_large_frames(self):
+        import struct
+
+        payload = ("x" * 70000).encode("utf-8")
+        frames = (
+            bytes([0x01, 5]) + b"hello"  # text, not final
+            + bytes([0x89, 0])  # ping in between
+            + bytes([0x80, 127]) + struct.pack(">Q", len(payload)) + payload  # final continuation
         )
 
-    def test_ensure_debug_chrome_is_windows_only(self):
-        with patch.object(MODULE.sys, "platform", "linux"):
-            self.assertIsNone(MODULE.ensure_debug_chrome())
+        class FakeSocket:
+            def __init__(self, data):
+                self.data = bytearray(data)
+                self.sent = []
 
-    @patch.object(MODULE, "cdp_alive", return_value=True)
-    def test_ensure_debug_chrome_prefers_working_explicit_port(self, cdp_alive):
-        with patch.object(MODULE.sys, "platform", "win32"), \
-                patch.dict(MODULE.os.environ, {"AGENT_BROWSER_CDP": "9444"}):
-            self.assertEqual(MODULE.ensure_debug_chrome(), 9444)
-        cdp_alive.assert_called_once_with(9444)
+            def recv(self, size):
+                chunk = bytes(self.data[:1000])
+                del self.data[:1000]
+                return chunk
 
-    def test_browser_session_exports_cdp_port_to_env(self):
-        with patch.dict(MODULE.os.environ, {}, clear=False):
-            MODULE.os.environ.pop("AGENT_BROWSER_CDP", None)
-            with_port = MODULE.BrowserSession(
-                "/bin/agent-browser", "s", Path("."), Path("/tmp/d"), cdp_port=9337
-            )
-            self.assertEqual(with_port.env["AGENT_BROWSER_CDP"], "9337")
-            without_port = MODULE.BrowserSession(
-                "/bin/agent-browser", "s", Path("."), Path("/tmp/d")
-            )
-            self.assertNotIn("AGENT_BROWSER_CDP", without_port.env)
+            def sendall(self, data):
+                self.sent.append(data)
+
+        ws = self.cdp.WebSocket.__new__(self.cdp.WebSocket)
+        ws.sock = FakeSocket(frames)
+        ws.buffer = bytearray()
+        self.assertEqual(ws.recv_text(), "hello" + "x" * 70000)
+        self.assertEqual(ws.sock.sent[0][0], 0x8A)  # answered the ping with a pong
+
+    def test_explicit_browser_comes_first(self):
+        with tempfile.TemporaryDirectory() as name:
+            browser = Path(name) / "my-browser.exe"
+            browser.write_bytes(b"")
+            with patch.dict(self.cdp.os.environ, {"OKP_BROWSER": str(browser)}):
+                self.assertEqual(self.cdp.browser_candidates()[0], str(browser))
 
 
 if __name__ == "__main__":
