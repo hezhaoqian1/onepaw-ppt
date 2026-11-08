@@ -4,13 +4,13 @@
   "description": "Unofficial reverse-engineered Kimi Slides skill for AI coding agents with local PPTD editing and PPTX export.",
   "license": "MIT",
   "author": "binaryify",
-  "homepage": "https://github.com/binaryify/open-kimi-ppt-skill#readme",
+  "homepage": "https://github.com/hezhaoqian1/onepaw-ppt#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/binaryify/open-kimi-ppt-skill.git"
+    "url": "git+https://github.com/hezhaoqian1/onepaw-ppt.git"
   },
   "bugs": {
-    "url": "https://github.com/binaryify/open-kimi-ppt-skill/issues"
+    "url": "https://github.com/hezhaoqian1/onepaw-ppt/issues"
   },
   "keywords": [
     "ppt",
